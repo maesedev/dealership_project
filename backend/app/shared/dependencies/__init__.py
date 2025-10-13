@@ -1,0 +1,4 @@
+"""
+Dependencias compartidas de FastAPI.
+"""
+

@@ -4,18 +4,14 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+import { DealerSession } from "@/components/dealer-session"
 import {
   User,
   TrendingUp,
   TrendingDown,
   Calculator,
-  Trophy,
   RefreshCw,
   MessageSquare,
-  CheckCircle,
   Sun,
   Moon,
   Plus,
@@ -47,9 +43,6 @@ export default function PlayerPerformanceTracker() {
       sessions: [{ id: 1, entrada: 0, salida: 0, comentarios: "" }],
     },
   ])
-
-  const [isValidated, setIsValidated] = useState(false)
-  const [validatorComments, setValidatorComments] = useState("")
 
   const updatePlayerName = (playerId: number, name: string) => {
     setPlayers((prev) => prev.map((player) => (player.id === playerId ? { ...player, name } : player)))
@@ -168,39 +161,40 @@ export default function PlayerPerformanceTracker() {
         sessions: [{ id: 1, entrada: 0, salida: 0, comentarios: "" }],
       },
     ])
-    setIsValidated(false)
-    setValidatorComments("")
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-2 sm:p-4">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div className="text-center flex-1">
-            <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-2">📊 Ficha Diaria de Jugadores</h1>
-            <p className="text-gray-600 dark:text-gray-300">Registro de Transacciones y balance diario</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-1 sm:mb-2">📊 Ficha Diaria de Jugadores</h1>
+            <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-300">Registro de Transacciones y balance diario</p>
           </div>
           <Button
             variant="outline"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="ml-4"
+            className="ml-2 shrink-0"
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
         </div>
 
+        {/* Sesión del Dealer */}
+        <DealerSession />
+
         {/* Main Table */}
         <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
-          <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-semibold">Registro de Jugadores y Transacciones</CardTitle>
+          <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <CardTitle className="text-lg sm:text-xl font-semibold">Registro de Jugadores y Transacciones</CardTitle>
               <Button
                 onClick={addNewPlayer}
                 variant="secondary"
                 size="sm"
-                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                className="bg-white/20 hover:bg-white/30 text-white border-white/30 w-full sm:w-auto"
               >
                 <UserPlus className="w-4 h-4 mr-1" />
                 Nuevo Jugador
@@ -371,10 +365,10 @@ export default function PlayerPerformanceTracker() {
 
         {/* Player Summary */}
         <Card className="shadow-lg border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
-          <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-lg">
-            <CardTitle className="text-xl font-semibold">Resumen por Jugador</CardTitle>
+          <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-lg p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl font-semibold">Resumen por Jugador</CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {players
                 .filter((player) => player.name.trim())
@@ -419,98 +413,56 @@ export default function PlayerPerformanceTracker() {
         </Card>
 
         {/* Summary Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-red-600 dark:text-red-400">Total Entrada</p>
-                  <p className="text-2xl font-bold text-red-800 dark:text-red-200">
+                  <p className="text-xs sm:text-sm font-medium text-red-600 dark:text-red-400">Total Entrada</p>
+                  <p className="text-xl sm:text-2xl font-bold text-red-800 dark:text-red-200 break-all">
                     {formatCurrency(grandTotals.entrada)}
                   </p>
                 </div>
-                <TrendingDown className="w-8 h-8 text-red-500" />
+                <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 shrink-0" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Salida</p>
-                  <p className="text-2xl font-bold text-green-800 dark:text-green-200">
+                  <p className="text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">Total Salida</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-800 dark:text-green-200 break-all">
                     {formatCurrency(grandTotals.salida)}
                   </p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-green-500" />
+                <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 shrink-0" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-            <CardContent className="p-6">
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 sm:col-span-2 md:col-span-1">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Balance Total</p>
-                  <p className="text-2xl font-bold text-blue-800 dark:text-blue-200">
+                  <p className="text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400">Balance Total</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-800 dark:text-blue-200 break-all">
                     {formatCurrency(grandTotals.balance)}
                   </p>
                 </div>
-                <Calculator className="w-8 h-8 text-blue-500" />
+                <Calculator className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 shrink-0" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Validation Section */}
-        <Card className="shadow-lg border-0 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
-              <Trophy className="w-6 h-6" />
-              Validación del Responsable
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <Switch
-                id="validation-switch"
-                checked={isValidated}
-                onCheckedChange={setIsValidated}
-                className="data-[state=checked]:bg-green-500"
-              />
-              <Label htmlFor="validation-switch" className="text-lg font-medium">
-                {isValidated ? (
-                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
-                    <CheckCircle className="w-5 h-5" />✅ Validado por responsable
-                  </div>
-                ) : (
-                  <span className="text-gray-600 dark:text-gray-400">Pendiente de validación</span>
-                )}
-              </Label>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="validator-comments" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Observaciones del responsable:
-              </Label>
-              <Textarea
-                id="validator-comments"
-                placeholder="Comentarios adicionales sobre el balance del día..."
-                value={validatorComments}
-                onChange={(e) => setValidatorComments(e.target.value)}
-                className="min-h-[100px] border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Reset Button */}
-        <div className="flex justify-center">
+        <div className="flex justify-center px-2">
           <Button
             onClick={resetDay}
             size="lg"
-            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
             <RefreshCw className="w-5 h-5 mr-2" />🆕 Nuevo Día
           </Button>

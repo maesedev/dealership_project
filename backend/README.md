@@ -108,11 +108,48 @@ Una vez ejecutándose, puedes acceder a:
 - **Documentación ReDoc**: http://localhost:8000/redoc
 - **Health Check**: http://localhost:8000/api/v1/health
 
+## 🔐 Sistema de Autenticación
+
+El proyecto incluye un sistema completo de autenticación con JWT. 
+
+**Inicio Rápido:**
+```bash
+# Ejecutar script de prueba
+python examples/test_auth.py
+
+# O seguir la guía rápida
+# Ver: QUICK_START_AUTH.md
+```
+
+**Documentación:**
+- 📚 **Guía completa**: `AUTH_DOCUMENTATION.md`
+- 🚀 **Inicio rápido**: `QUICK_START_AUTH.md`
+- 📖 **README del servicio**: `app/services/auth_service/README.md`
+- 🧪 **Ejemplos**: Carpeta `examples/`
+
+**Características:**
+- ✅ Login con email y contraseña
+- ✅ JWT (JSON Web Tokens)
+- ✅ Verificación de tokens
+- ✅ Refresh de tokens
+- ✅ Control de roles (ADMIN, DEALER, MANAGER, USER)
+- ✅ Intentos fallidos y bloqueo de cuenta
+- ✅ Dependencias para proteger endpoints
+
 ## Endpoints Disponibles
 
+### General
 - `GET /` - Hello World
 - `GET /api/v1/health` - Health check
 - `GET /docs` - Documentación interactiva
+
+### Autenticación 🔐
+- `POST /api/v1/auth/login` - Login con email y contraseña
+- `POST /api/v1/auth/refresh` - Refrescar token JWT
+- `GET /api/v1/auth/me` - Obtener usuario autenticado
+
+### Usuarios
+- Ver `USER_SCHEMA_DOCUMENTATION.md` para endpoints de usuarios
 
 ## Desarrollo
 
@@ -128,3 +165,56 @@ Una vez ejecutándose, puedes acceder a:
 1. Crear carpeta en `app/services/nuevo_servicio/`
 2. Implementar `service.py` que consuma los dominios necesarios
 3. NO modificar la lógica de negocio de los dominios
+
+### Proteger Endpoints con Autenticación
+
+```python
+from fastapi import APIRouter, Depends
+from app.shared.dependencies.auth import (
+    get_current_active_user,
+    require_admin,
+    RoleChecker
+)
+from app.domains.user.domain import UserDomain
+
+router = APIRouter()
+
+# Endpoint protegido - requiere autenticación
+@router.get("/protected")
+async def protected_endpoint(user: UserDomain = Depends(get_current_active_user)):
+    return {"message": f"Hola {user.name}"}
+
+# Endpoint solo para admins
+@router.delete("/admin-only", dependencies=[Depends(require_admin)])
+async def admin_endpoint():
+    return {"message": "Solo admins"}
+```
+
+Ver más ejemplos en `examples/protected_endpoint_example.py`
+
+## 📚 Documentación Adicional
+
+- **Sistema de Usuarios**: `USER_SCHEMA_DOCUMENTATION.md`
+- **Sistema de Autenticación**: `AUTH_DOCUMENTATION.md`
+- **Inicio Rápido Auth**: `QUICK_START_AUTH.md`
+- **Ejemplos de Código**: Carpeta `examples/`
+
+## 🧪 Scripts de Prueba
+
+```bash
+# Probar sistema de autenticación
+python examples/test_auth.py
+
+# Ver pruebas HTTP
+# Abrir: examples/http_requests_auth.http
+```
+
+## 🔒 Seguridad
+
+- Las contraseñas se hashean con **bcrypt**
+- Los tokens son **JWT firmados con HS256**
+- Tokens expiran en **30 minutos** (configurable)
+- **5 intentos fallidos** antes de bloquear cuenta
+- Solo usuarios **activos** pueden autenticarse
+
+⚠️ **IMPORTANTE**: En producción, cambiar `SECRET_KEY` en el archivo `.env`
