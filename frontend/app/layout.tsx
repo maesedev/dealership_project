@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Poker Tracker',
-  description: 'Seguimiento de sesiones de juego',
+  description: 'Seguimiento de Transacciones de juego',
 }
 
 export default function RootLayout({

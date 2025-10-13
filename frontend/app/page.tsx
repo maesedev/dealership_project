@@ -179,7 +179,7 @@ export default function PlayerPerformanceTracker() {
         <div className="flex items-center justify-between">
           <div className="text-center flex-1">
             <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-2">📊 Ficha Diaria de Jugadores</h1>
-            <p className="text-gray-600 dark:text-gray-300">Registro de sesiones y balance diario</p>
+            <p className="text-gray-600 dark:text-gray-300">Registro de Transacciones y balance diario</p>
           </div>
           <Button
             variant="outline"
@@ -195,7 +195,7 @@ export default function PlayerPerformanceTracker() {
         <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
           <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-semibold">Registro de Jugadores y Sesiones</CardTitle>
+              <CardTitle className="text-xl font-semibold">Registro de Jugadores y Transacciones</CardTitle>
               <Button
                 onClick={addNewPlayer}
                 variant="secondary"
@@ -273,7 +273,7 @@ export default function PlayerPerformanceTracker() {
                                   />
                                   {player.sessions.length > 1 && (
                                     <div className="text-xs text-gray-500 mt-1">
-                                      {player.sessions.length} sesiones - Total: {formatCurrency(playerTotals.balance)}
+                                      {player.sessions.length} Transacciones - Total: {formatCurrency(playerTotals.balance)}
                                     </div>
                                   )}
                                 </div>
@@ -300,7 +300,7 @@ export default function PlayerPerformanceTracker() {
                               </div>
                             ) : (
                               <div className="pl-4 text-sm text-gray-500 dark:text-gray-400">
-                                ↳ Sesión {sessionIndex + 1}
+                                ↳ Transacción {sessionIndex + 1}
                               </div>
                             )}
                           </td>
@@ -341,7 +341,7 @@ export default function PlayerPerformanceTracker() {
                           </td>
                           <td className="px-4 py-3">
                             <Input
-                              placeholder="Comentarios de la sesión"
+                              placeholder="Comentarios de la Transacción"
                               value={session.comentarios}
                               onChange={(e) => updateSession(player.id, session.id, "comentarios", e.target.value)}
                               className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -386,7 +386,7 @@ export default function PlayerPerformanceTracker() {
                         <h3 className="font-semibold text-lg mb-2 text-gray-800 dark:text-white">{player.name}</h3>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-600 dark:text-gray-400">Sesiones:</span>
+                            <span className="text-gray-600 dark:text-gray-400">Transacciones:</span>
                             <span className="font-medium">{totals.sessions}</span>
                           </div>
                           <div className="flex justify-between">
