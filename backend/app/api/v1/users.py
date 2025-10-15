@@ -22,7 +22,7 @@ from app.shared.dependencies.services import get_user_service
 router = APIRouter()
 
 
-@router.post("/", response_model=UserResponseSchema, status_code=status.HTTP_201_CREATED)
+@router.post("/create", response_model=UserResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreateSchema,
     current_user: UserDomain = Depends(get_current_dealer_or_higher),
@@ -37,8 +37,8 @@ async def create_user(
     - Managers pueden crear solo usuarios tipo USER
     
     Reglas de negocio:
-    - Usuarios tipo USER: email y password opcionales, is_active = False por defecto
-    - Usuarios Dealer/Manager/Admin: email y password obligatorios, is_active = True por defecto
+    - Usuarios tipo USER: username y password opcionales, is_active = False por defecto
+    - Usuarios Dealer/Manager/Admin: username y password obligatorios, is_active = True por defecto
     """
     try:
         # Validar reglas de negocio del schema
@@ -63,7 +63,7 @@ async def create_user(
             )
         
         user = await user_service.create_user(
-            email=user_data.email,
+            username=user_data.username,
             password=user_data.password,
             name=user_data.name,
             roles=user_data.roles

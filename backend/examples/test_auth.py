@@ -35,7 +35,7 @@ async def main():
     auth_service = AuthService()
     
     # Datos de prueba
-    test_email = "demo@dealership.com"
+    test_username = "demo_user"
     test_password = "DemoPassword123"
     test_name = "Usuario Demo"
     
@@ -44,21 +44,21 @@ async def main():
     
     try:
         # Intentar obtener usuario existente
-        existing_user = await user_service.get_user_by_email(test_email)
+        existing_user = await user_service.get_user_by_username(test_username)
         
         if existing_user:
-            print(f"✓ Usuario ya existe: {test_email}")
+            print(f"✓ Usuario ya existe: {test_username}")
             user = existing_user
         else:
             # Crear nuevo usuario
             user = await user_service.create_user(
-                email=test_email,
+                username=test_username,
                 password=test_password,
                 name=test_name,
                 roles=[UserRole.USER, UserRole.DEALER]
             )
             print(f"✓ Usuario creado exitosamente:")
-            print(f"  - Email: {user.email}")
+            print(f"  - Username: {user.username}")
             print(f"  - Nombre: {user.name}")
             print(f"  - Roles: {[role.value for role in user.roles]}")
             print(f"  - ID: {user.id}")
@@ -73,7 +73,7 @@ async def main():
     try:
         # Intentar login con credenciales correctas
         auth_result = await auth_service.login(
-            email=test_email,
+            username=test_username,
             password=test_password
         )
         
@@ -83,7 +83,7 @@ async def main():
             print(f"  - Expira en: {auth_result['expires_in']} segundos")
             print(f"  - Access Token (primeros 50 caracteres): {auth_result['access_token'][:50]}...")
             print(f"\n✓ Datos del usuario autenticado:")
-            print(f"  - Email: {auth_result['user'].email}")
+            print(f"  - Username: {auth_result['user'].username}")
             print(f"  - Nombre: {auth_result['user'].name}")
             print(f"  - Roles: {[role.value for role in auth_result['user'].roles]}")
             print(f"  - Estado: {'Activo' if auth_result['user'].is_active else 'Inactivo'}")
@@ -107,7 +107,7 @@ async def main():
         if payload:
             print("✓ Token válido!")
             print(f"  - Usuario ID: {payload.get('sub')}")
-            print(f"  - Email: {payload.get('email')}")
+            print(f"  - Username: {payload.get('username')}")
             print(f"  - Roles: {payload.get('roles')}")
             print(f"  - Nombre: {payload.get('name')}")
             print(f"  - Expira: {payload.get('exp')}")
@@ -129,7 +129,7 @@ async def main():
         if current_user:
             print("✓ Usuario obtenido desde token:")
             print(f"  - ID: {current_user.id}")
-            print(f"  - Email: {current_user.email}")
+            print(f"  - Username: {current_user.username}")
             print(f"  - Nombre: {current_user.name}")
             print(f"  - Roles: {[role.value for role in current_user.roles]}")
             print(f"  - Es Admin: {current_user.is_admin()}")
@@ -172,7 +172,7 @@ async def main():
     try:
         # Intentar login con contraseña incorrecta
         failed_login = await auth_service.login(
-            email=test_email,
+            username=test_username,
             password="PasswordIncorrecta123"
         )
         
@@ -182,7 +182,7 @@ async def main():
             print("✓ Login rechazado correctamente - Contraseña incorrecta")
             
             # Verificar que se registró el intento fallido
-            user_after_fail = await user_service.get_user_by_email(test_email)
+            user_after_fail = await user_service.get_user_by_username(test_username)
             print(f"  - Intentos fallidos: {user_after_fail.security.failed_attempts}")
     
     except Exception as e:

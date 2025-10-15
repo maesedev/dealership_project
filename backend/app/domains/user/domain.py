@@ -4,7 +4,7 @@ Dominio User - Lógica de negocio pura para usuarios.
 
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, validator
 from enum import Enum
 import re
 
@@ -34,11 +34,11 @@ class UserDomain(BaseModel):
     Representa las reglas de negocio puras para un usuario.
     
     Reglas:
-    - Usuarios tipo USER: email y password opcionales, is_active = False por defecto
-    - Usuarios Dealer/Manager/Admin: email y password obligatorios, is_active = True por defecto
+    - Usuarios tipo USER: username y password opcionales, is_active = False por defecto
+    - Usuarios Dealer/Manager/Admin: username y password obligatorios, is_active = True por defecto
     """
     id: Optional[str] = None
-    email: Optional[str] = None
+    username: Optional[str] = None
     hashed_password: str = ""  # Vacío para usuarios sin contraseña
     roles: List[UserRole] = [UserRole.USER]
     is_active: bool = True
@@ -51,8 +51,8 @@ class UserDomain(BaseModel):
         """Obtener nombre para mostrar"""
         if self.name:
             return self.name
-        if self.email:
-            return self.email.split('@')[0]
+        if self.username:
+            return self.username
         return "Usuario sin nombre"
     
     def has_role(self, role: UserRole) -> bool:
@@ -80,8 +80,8 @@ class UserDomain(BaseModel):
         return self.security.failed_attempts >= 5
     
     def can_login(self) -> bool:
-        """Verificar si el usuario puede iniciar sesión (debe tener email)"""
-        return self.email is not None and len(self.email) > 0
+        """Verificar si el usuario puede iniciar sesión (debe tener username)"""
+        return self.username is not None and len(self.username) > 0
     
     def validate_business_rules(self) -> List[str]:
         """
@@ -90,9 +90,9 @@ class UserDomain(BaseModel):
         """
         errors = []
         
-        # Validar email (opcional, pero si existe debe ser válido)
-        if self.email and not self._is_valid_email_format(self.email):
-            errors.append("El email no tiene un formato válido")
+        # Validar username (opcional, pero si existe debe ser válido)
+        if self.username and not self._is_valid_username_format(self.username):
+            errors.append("El username no tiene un formato válido")
         
         # Validar nombre
         if not self.name or len(self.name.strip()) < 2:
@@ -122,10 +122,14 @@ class UserDomain(BaseModel):
         
         return errors
     
-    def _is_valid_email_format(self, email: str) -> bool:
-        """Validar formato de email"""
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        return bool(re.match(pattern, email))
+    def _is_valid_username_format(self, username: str) -> bool:
+        """Validar formato de username"""
+        # Username debe tener entre 3 y 50 caracteres
+        # Solo letras, números, guiones bajos y guiones
+        if len(username) < 3 or len(username) > 50:
+            return False
+        pattern = r'^[a-zA-Z0-9_-]+$'
+        return bool(re.match(pattern, username))
 
 
 class UserDomainService:
@@ -135,20 +139,20 @@ class UserDomainService:
     """
     
     @staticmethod
-    def create_user(email: Optional[str], hashed_password: str = "", name: str = "",
+    def create_user(username: Optional[str], hashed_password: str = "", name: str = "",
                    roles: List[UserRole] = None) -> UserDomain:
         """
         Crear un nuevo usuario con validación de reglas de negocio.
         
         Reglas:
-        - Usuarios tipo USER: email y password opcionales, is_active = False por defecto
-        - Usuarios Dealer/Manager/Admin: email y password obligatorios, is_active = True por defecto
+        - Usuarios tipo USER: username y password opcionales, is_active = False por defecto
+        - Usuarios Dealer/Manager/Admin: username y password obligatorios, is_active = True por defecto
         """
         if roles is None:
             roles = [UserRole.USER]
         
         user = UserDomain(
-            email=email,
+            username=username,
             hashed_password=hashed_password,
             name=name,
             roles=roles,

@@ -5,7 +5,7 @@ Estos schemas se usan para la validación de entrada/salida de la API.
 
 from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 from app.domains.user.domain import UserRole
 
 
@@ -22,7 +22,7 @@ class UserSecuritySchema(BaseModel):
 
 class UserCreateSchema(BaseModel):
     """Schema para crear un usuario"""
-    email: Optional[EmailStr] = None
+    username: Optional[str] = None
     password: Optional[str] = None
     name: str
     roles: List[UserRole] = [UserRole.USER]
@@ -43,6 +43,20 @@ class UserCreateSchema(BaseModel):
             raise ValueError('La contraseña debe contener al menos un número')
         return v
     
+    @field_validator('username')
+    def validate_username(cls, v):
+        if v is not None:
+            if len(v.strip()) < 3:
+                raise ValueError('El username debe tener al menos 3 caracteres')
+            if len(v.strip()) > 50:
+                raise ValueError('El username no puede exceder 50 caracteres')
+            # Solo permitir letras, números, guiones bajos y guiones
+            import re
+            if not re.match(r'^[a-zA-Z0-9_-]+$', v.strip()):
+                raise ValueError('El username solo puede contener letras, números, guiones bajos y guiones')
+            return v.strip()
+        return v
+    
     @field_validator('name')
     def validate_name(cls, v):
         if len(v.strip()) < 2:
@@ -55,11 +69,11 @@ class UserCreateSchema(BaseModel):
         """Validar reglas de negocio específicas según el rol"""
         errors = []
         
-        # Si es DEALER, MANAGER o ADMIN, email y password son obligatorios
+        # Si es DEALER, MANAGER o ADMIN, username y password son obligatorios
         privileged_roles = [UserRole.DEALER, UserRole.MANAGER, UserRole.ADMIN]
         if any(role in privileged_roles for role in self.roles):
-            if not self.email:
-                errors.append('Los usuarios con rol Dealer, Manager o Admin deben tener email')
+            if not self.username:
+                errors.append('Los usuarios con rol Dealer, Manager o Admin deben tener username')
             if not self.password:
                 errors.append('Los usuarios con rol Dealer, Manager o Admin deben tener contraseña')
         
@@ -86,7 +100,7 @@ class UserUpdateSchema(BaseModel):
 class UserResponseSchema(BaseModel):
     """Schema para respuesta de usuario (sin información sensible)"""
     id: str
-    email: Optional[str] = None
+    username: Optional[str] = None
     name: str
     roles: List[UserRole]
     is_active: bool
@@ -100,7 +114,7 @@ class UserResponseSchema(BaseModel):
 
 class UserLoginSchema(BaseModel):
     """Schema para login de usuario"""
-    email: EmailStr
+    username: str
     password: str
 
 

@@ -19,7 +19,7 @@ async def login(
     auth_service: AuthService = Depends(get_auth_service)
 ):
     """
-    Endpoint de autenticación - Login con email y contraseña.
+    Endpoint de autenticación - Login con username y contraseña.
     
     Este endpoint recibe las credenciales del usuario y devuelve un JWT
     si las credenciales son válidas.
@@ -36,7 +36,7 @@ async def login(
         "expires_in": 1800,
         "user": {
             "id": "507f1f77bcf86cd799439011",
-            "email": "user@example.com",
+            "username": "johndoe",
             "name": "John Doe",
             "roles": ["USER"],
             "is_active": true,
@@ -52,14 +52,14 @@ async def login(
     
     # Intentar autenticar
     result = await auth_service.login(
-        email=credentials.email,
+        username=credentials.username,
         password=credentials.password
     )
     
     if not result:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales inválidas o cuenta bloqueada. Verifica tu email y contraseña.",
+            detail="Credenciales inválidas o cuenta bloqueada. Verifica tu username y contraseña.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -68,7 +68,7 @@ async def login(
     
     user_response = UserResponseSchema(
         id=result["user"].id,
-        email=result["user"].email,
+        username=result["user"].username,
         name=result["user"].name,
         roles=result["user"].roles,
         is_active=result["user"].is_active,
@@ -110,7 +110,7 @@ async def refresh_token(current_user: UserDomain = Depends(get_current_active_us
     
     token_data = {
         "sub": current_user.id,
-        "email": current_user.email,
+        "username": current_user.username,
         "roles": [role.value for role in current_user.roles],
         "name": current_user.name
     }
@@ -126,7 +126,7 @@ async def refresh_token(current_user: UserDomain = Depends(get_current_active_us
     
     user_response = UserResponseSchema(
         id=current_user.id,
-        email=current_user.email,
+        username=current_user.username,
         name=current_user.name,
         roles=current_user.roles,
         is_active=current_user.is_active,
@@ -164,7 +164,7 @@ async def get_current_user_info(current_user: UserDomain = Depends(get_current_a
     
     user_response = UserResponseSchema(
         id=current_user.id,
-        email=current_user.email,
+        username=current_user.username,
         name=current_user.name,
         roles=current_user.roles,
         is_active=current_user.is_active,

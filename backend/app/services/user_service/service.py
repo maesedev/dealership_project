@@ -35,14 +35,14 @@ class UserService:
             return False
         return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
     
-    async def create_user(self, email: Optional[str], password: Optional[str], name: str,
+    async def create_user(self, username: Optional[str], password: Optional[str], name: str,
                          roles: List[UserRole] = None) -> UserDomain:
         """
         Crear un nuevo usuario usando el dominio.
         
         Reglas de negocio:
-        - Usuarios tipo USER: email y password opcionales, is_active = False por defecto
-        - Usuarios Dealer/Manager/Admin: email y password obligatorios, is_active = True por defecto
+        - Usuarios tipo USER: username y password opcionales, is_active = False por defecto
+        - Usuarios Dealer/Manager/Admin: username y password obligatorios, is_active = True por defecto
         """
         if roles is None:
             roles = [UserRole.USER]
@@ -52,17 +52,17 @@ class UserService:
         is_privileged = any(role in privileged_roles for role in roles)
         
         if is_privileged:
-            # Dealers, Managers y Admins DEBEN tener email y password
-            if not email:
-                raise ValueError("Los usuarios con rol Dealer, Manager o Admin deben tener email")
+            # Dealers, Managers y Admins DEBEN tener username y password
+            if not username:
+                raise ValueError("Los usuarios con rol Dealer, Manager o Admin deben tener username")
             if not password:
                 raise ValueError("Los usuarios con rol Dealer, Manager o Admin deben tener contraseña")
         
-        # Verificar que el email no exista si se proporcionó
-        if email:
-            existing_user = await self.get_user_by_email(email)
+        # Verificar que el username no exista si se proporcionó
+        if username:
+            existing_user = await self.get_user_by_username(username)
             if existing_user:
-                raise ValueError("El email ya está registrado")
+                raise ValueError("El username ya está registrado")
         
         # Hashear la contraseña (si se proporcionó)
         if password:
@@ -78,7 +78,7 @@ class UserService:
         
         # Usar el servicio de dominio para crear el usuario
         user = self.domain_service.create_user(
-            email=email,
+            username=username,
             hashed_password=hashed_password,
             name=name,
             roles=roles
@@ -113,11 +113,11 @@ class UserService:
         
         return None
     
-    async def get_user_by_email(self, email: str) -> Optional[UserDomain]:
+    async def get_user_by_username(self, username: str) -> Optional[UserDomain]:
         """
-        Obtener un usuario por email.
+        Obtener un usuario por username.
         """
-        user_data = await self.collection.find_one({"email": email})
+        user_data = await self.collection.find_one({"username": username})
         
         if user_data:
             user_data["id"] = str(user_data["_id"])
@@ -240,17 +240,17 @@ class UserService:
         
         return deactivated_user
     
-    async def authenticate_user(self, email: str, password: str) -> Optional[UserDomain]:
+    async def authenticate_user(self, username: str, password: str) -> Optional[UserDomain]:
         """
-        Autenticar un usuario con email y contraseña.
-        Solo usuarios con email pueden iniciar sesión.
+        Autenticar un usuario con username y contraseña.
+        Solo usuarios con username pueden iniciar sesión.
         """
-        user = await self.get_user_by_email(email)
+        user = await self.get_user_by_username(username)
         
         if not user:
             return None
         
-        # Verificar que el usuario pueda iniciar sesión (debe tener email)
+        # Verificar que el usuario pueda iniciar sesión (debe tener username)
         if not user.can_login():
             return None
         
@@ -319,12 +319,12 @@ class UserService:
     
     async def search_users(self, search_term: str) -> List[UserDomain]:
         """
-        Buscar usuarios por nombre o email.
+        Buscar usuarios por nombre o username.
         """
         # Crear índice de texto si no existe
         await self.collection.create_index([
             ("name", "text"),
-            ("email", "text")
+            ("username", "text")
         ])
         
         cursor = self.collection.find({"$text": {"$search": search_term}})

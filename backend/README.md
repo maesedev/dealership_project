@@ -128,7 +128,7 @@ python examples/test_auth.py
 - 🧪 **Ejemplos**: Carpeta `examples/`
 
 **Características:**
-- ✅ Login con email y contraseña
+- ✅ Login con username y contraseña
 - ✅ JWT (JSON Web Tokens)
 - ✅ Verificación de tokens
 - ✅ Refresh de tokens
@@ -144,7 +144,7 @@ python examples/test_auth.py
 - `GET /docs` - Documentación interactiva
 
 ### Autenticación 🔐
-- `POST /api/v1/auth/login` - Login con email y contraseña
+- `POST /api/v1/auth/login` - Login con username y contraseña
 - `POST /api/v1/auth/refresh` - Refrescar token JWT
 - `GET /api/v1/auth/me` - Obtener usuario autenticado
 
@@ -166,7 +166,7 @@ python examples/test_auth.py
 2. Implementar `service.py` que consuma los dominios necesarios
 3. NO modificar la lógica de negocio de los dominios
 
-### Proteger Endpoints con Autenticación
+### Proteger Endpoints con **Autenticación**
 
 ```python
 from fastapi import APIRouter, Depends
@@ -218,3 +218,468 @@ python examples/test_auth.py
 - Solo usuarios **activos** pueden autenticarse
 
 ⚠️ **IMPORTANTE**: En producción, cambiar `SECRET_KEY` en el archivo `.env`
+
+---
+
+## 📋 API Reference - Endpoints y Schemas
+
+### 🔑 Autenticación (`/api/v1/auth`)
+
+#### `POST /api/v1/auth/login`
+**Descripción**: Login con username y contraseña  
+**Permisos**: Público  
+**Request Body**:
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+**Response**:
+```json
+{
+  "access_token": "string",
+  "token_type": "bearer",
+  "expires_in": 1800,
+  "user": {
+    "id": "string",
+    "username": "string",
+    "name": "string",
+    "roles": ["USER", "DEALER", "MANAGER", "ADMIN"],
+    "is_active": true,
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-01-01T00:00:00Z",
+    "security": {
+      "failed_attempts": 0
+    }
+  }
+}
+```
+
+#### `POST /api/v1/auth/refresh`
+**Descripción**: Refrescar token JWT  
+**Permisos**: Usuario autenticado  
+**Headers**: `Authorization: Bearer {token}`  
+**Response**: Mismo schema que login
+
+#### `GET /api/v1/auth/me`
+**Descripción**: Obtener información del usuario autenticado  
+**Permisos**: Usuario autenticado  
+**Headers**: `Authorization: Bearer {token}`  
+**Response**: Información del usuario
+
+---
+
+### 👥 Usuarios (`/api/v1/users`)
+
+#### `POST /api/v1/users/create`
+**Descripción**: Crear un nuevo usuario  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body**:
+```json
+{
+  "username": "string (opcional para USER)",
+  "password": "string (opcional para USER)",
+  "name": "string",
+  "roles": ["USER", "DEALER", "MANAGER", "ADMIN"]
+}
+```
+**Notas**:
+- Usuarios tipo USER: username y password opcionales, `is_active = false` por defecto
+- Dealers/Managers/Admins: username y password obligatorios, `is_active = true` por defecto
+- Solo Admin puede crear usuarios con roles privilegiados
+
+#### `GET /api/v1/users/{user_id}`
+**Descripción**: Obtener usuario por ID  
+**Permisos**: Usuario autenticado
+
+#### `GET /api/v1/users`
+**Descripción**: Listar usuarios con paginación  
+**Permisos**: Manager o Admin  
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+
+#### `PUT /api/v1/users/{user_id}`
+**Descripción**: Actualizar usuario  
+**Permisos**: El mismo usuario o Admin  
+**Request Body**:
+```json
+{
+  "name": "string (opcional)",
+  "is_active": "boolean (solo Admin)",
+  "roles": ["array (solo Admin)"]
+}
+```
+
+#### `PUT /api/v1/users/{user_id}/roles`
+**Descripción**: Actualizar roles de usuario  
+**Permisos**: Admin  
+**Request Body**:
+```json
+{
+  "roles": ["USER", "DEALER", "MANAGER", "ADMIN"]
+}
+```
+
+#### `POST /api/v1/users/{user_id}/activate`
+**Descripción**: Activar usuario  
+**Permisos**: Admin
+
+#### `POST /api/v1/users/{user_id}/deactivate`
+**Descripción**: Desactivar usuario  
+**Permisos**: Admin
+
+#### `GET /api/v1/users/stats/overview`
+**Descripción**: Obtener estadísticas de usuarios  
+**Permisos**: Manager o Admin
+
+#### `DELETE /api/v1/users/{user_id}`
+**Descripción**: Eliminar usuario  
+**Permisos**: Admin
+
+---
+
+### 🎰 Sesiones (`/api/v1/sessions`)
+
+#### `POST /api/v1/sessions`
+**Descripción**: Crear una nueva sesión  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body**:
+```json
+{
+  "dealer_id": "string (ID del dealer)",
+  "start_time": "datetime",
+  "end_time": "datetime (opcional)",
+  "jackpot": "int (default: 0)",
+  "reik": "int (default: 0)",
+  "tips": "int (default: 0)",
+  "hourly_pay": "int (default: 0)",
+  "comment": "string (opcional)"
+}
+```
+**Validaciones**:
+- El `dealer_id` debe ser un usuario con rol Dealer, Manager o Admin
+
+#### `GET /api/v1/sessions/{session_id}`
+**Descripción**: Obtener sesión por ID  
+**Permisos**: Usuario autenticado
+
+#### `GET /api/v1/sessions`
+**Descripción**: Listar sesiones con paginación  
+**Permisos**: Usuario autenticado  
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+- `dealer_id`: string (opcional, filtra por dealer)
+
+#### `GET /api/v1/sessions/active/list`
+**Descripción**: Obtener sesiones activas (sin end_time)  
+**Permisos**: Usuario autenticado  
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+
+#### `PUT /api/v1/sessions/{session_id}`
+**Descripción**: Actualizar sesión  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body**:
+```json
+{
+  "dealer_id": "string (opcional)",
+  "start_time": "datetime (opcional)",
+  "end_time": "datetime (opcional)",
+  "jackpot": "int (opcional)",
+  "reik": "int (opcional)",
+  "tips": "int (opcional)",
+  "hourly_pay": "int (opcional, solo Manager/Admin)",
+  "comment": "string (opcional)"
+}
+```
+**Restricción**: Solo Manager y Admin pueden actualizar `hourly_pay`
+
+#### `POST /api/v1/sessions/{session_id}/end`
+**Descripción**: Finalizar una sesión activa  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body** (opcional):
+```json
+{
+  "end_time": "datetime (opcional, usa hora actual si no se proporciona)"
+}
+```
+
+#### `DELETE /api/v1/sessions/{session_id}`
+**Descripción**: Eliminar sesión  
+**Permisos**: Manager o Admin
+
+---
+
+### 💰 Transacciones (`/api/v1/transactions`)
+
+#### `POST /api/v1/transactions`
+**Descripción**: Crear una nueva transacción  
+**Permisos**: Usuario autenticado  
+**Request Body**:
+```json
+{
+  "user_id": "string (ID del usuario)",
+  "session_id": "string (ID de la sesión)",
+  "cantidad": "int",
+  "operation_type": "COMPRA | VENTA",
+  "transaction_media": "EFECTIVO | NEQUI | DAVIPLATA | BANCOLOMBIA",
+  "comment": "string (opcional)"
+}
+```
+**Validaciones**:
+- `user_id` debe existir
+- `session_id` debe existir y estar activa (abierta)
+
+#### `GET /api/v1/transactions/{transaction_id}`
+**Descripción**: Obtener transacción por ID  
+**Permisos**: Usuario autenticado
+
+#### `GET /api/v1/transactions`
+**Descripción**: Listar transacciones con paginación  
+**Permisos**: Usuario autenticado  
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+- `user_id`: string (opcional, filtra por usuario)
+- `session_id`: string (opcional, filtra por sesión)
+
+#### `PUT /api/v1/transactions/{transaction_id}`
+**Descripción**: Actualizar transacción  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body**:
+```json
+{
+  "user_id": "string (opcional)",
+  "session_id": "string (opcional)",
+  "cantidad": "int (opcional)",
+  "operation_type": "COMPRA | VENTA (opcional)",
+  "transaction_media": "EFECTIVO | NEQUI | DAVIPLATA | BANCOLOMBIA (opcional)",
+  "comment": "string (opcional)"
+}
+```
+**Restricción**: Si la sesión está cerrada, solo Manager y Admin pueden modificar
+
+#### `DELETE /api/v1/transactions/{transaction_id}`
+**Descripción**: Eliminar transacción  
+**Permisos**: Dealer, Manager o Admin
+
+---
+
+### 🎁 Bonos (`/api/v1/bonos`)
+
+#### `POST /api/v1/bonos`
+**Descripción**: Crear un nuevo bono  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body**:
+```json
+{
+  "user_id": "string (ID del usuario)",
+  "session_id": "string (ID de la sesión)",
+  "value": "int",
+  "comment": "string (opcional)"
+}
+```
+**Validaciones**:
+- `user_id` debe existir
+- `session_id` debe existir y estar activa (abierta)
+
+#### `GET /api/v1/bonos/{bono_id}`
+**Descripción**: Obtener bono por ID  
+**Permisos**: Usuario autenticado
+
+#### `GET /api/v1/bonos`
+**Descripción**: Listar bonos con paginación  
+**Permisos**: Usuario autenticado  
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+- `user_id`: string (opcional, filtra por usuario)
+- `session_id`: string (opcional, filtra por sesión)
+
+#### `PUT /api/v1/bonos/{bono_id}`
+**Descripción**: Actualizar bono  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body**:
+```json
+{
+  "user_id": "string (opcional)",
+  "session_id": "string (opcional)",
+  "value": "int (opcional)",
+  "comment": "string (opcional)"
+}
+```
+**Restricción**: Si la sesión está cerrada, solo Manager y Admin pueden modificar
+
+#### `DELETE /api/v1/bonos/{bono_id}`
+**Descripción**: Eliminar bono  
+**Permisos**: Dealer, Manager o Admin
+
+---
+
+### 🏆 Premios Jackpot (`/api/v1/jackpot-prices`)
+
+#### `POST /api/v1/jackpot-prices`
+**Descripción**: Crear un nuevo premio jackpot  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body**:
+```json
+{
+  "user_id": "string (ID del usuario)",
+  "session_id": "string (ID de la sesión)",
+  "value": "int",
+  "winner_hand": "string (mano ganadora)",
+  "comment": "string (opcional)"
+}
+```
+**Validaciones**:
+- `user_id` debe existir
+- `session_id` debe existir y estar activa (abierta)
+
+#### `GET /api/v1/jackpot-prices/{jackpot_id}`
+**Descripción**: Obtener premio jackpot por ID  
+**Permisos**: Usuario autenticado
+
+#### `GET /api/v1/jackpot-prices`
+**Descripción**: Listar premios jackpot con paginación  
+**Permisos**: Usuario autenticado  
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+- `user_id`: string (opcional, filtra por usuario)
+- `session_id`: string (opcional, filtra por sesión)
+
+#### `GET /api/v1/jackpot-prices/top/winners`
+**Descripción**: Obtener top ganadores de jackpot  
+**Permisos**: Usuario autenticado  
+**Query Parameters**:
+- `limit`: int (default: 10)
+
+#### `PUT /api/v1/jackpot-prices/{jackpot_id}`
+**Descripción**: Actualizar premio jackpot  
+**Permisos**: Dealer, Manager o Admin  
+**Request Body**:
+```json
+{
+  "user_id": "string (opcional)",
+  "session_id": "string (opcional)",
+  "value": "int (opcional)",
+  "winner_hand": "string (opcional)",
+  "comment": "string (opcional)"
+}
+```
+**Restricción**: Si la sesión está cerrada, solo Manager y Admin pueden modificar
+
+#### `DELETE /api/v1/jackpot-prices/{jackpot_id}`
+**Descripción**: Eliminar premio jackpot  
+**Permisos**: Dealer, Manager o Admin
+
+---
+
+### 📊 Reportes Diarios (`/api/v1/daily-reports`)
+
+#### `GET /api/v1/daily-reports/date/{report_date}`
+**Descripción**: Obtener reporte por fecha  
+**Permisos**: Manager o Admin  
+**Comportamiento**:
+- Si la fecha es HOY (Bogotá): SIEMPRE regenera el reporte (datos en tiempo real)
+- Si es fecha pasada: Devuelve existente o genera si no existe
+
+#### `GET /api/v1/daily-reports/{report_id}`
+**Descripción**: Obtener reporte por ID  
+**Permisos**: Manager o Admin
+
+#### `GET /api/v1/daily-reports`
+**Descripción**: Listar reportes con paginación  
+**Permisos**: Manager o Admin  
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+- `date_from`: date (opcional)
+- `date_to`: date (opcional)
+
+#### `GET /api/v1/daily-reports/profitable/list`
+**Descripción**: Listar reportes con ganancia positiva  
+**Permisos**: Manager o Admin  
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+
+#### `POST /api/v1/daily-reports`
+**Descripción**: Crear reporte manualmente  
+**Permisos**: Manager o Admin  
+**Request Body**:
+```json
+{
+  "date": "date",
+  "reik": "int",
+  "jackpot": "int",
+  "ganancias": "int",
+  "gastos": "int",
+  "sessions": ["array de session_ids"],
+  "comment": "string (opcional)"
+}
+```
+
+#### `PUT /api/v1/daily-reports/{report_id}`
+**Descripción**: Actualizar reporte  
+**Permisos**: Manager o Admin  
+**Request Body**:
+```json
+{
+  "reik": "int (opcional)",
+  "jackpot": "int (opcional)",
+  "ganancias": "int (opcional)",
+  "gastos": "int (opcional)",
+  "sessions": "array (opcional)",
+  "comment": "string (opcional)"
+}
+```
+
+#### `GET /api/v1/daily-reports/stats/overview`
+**Descripción**: Obtener estadísticas de reportes  
+**Permisos**: Manager o Admin  
+**Query Parameters**:
+- `date_from`: date (opcional)
+- `date_to`: date (opcional)
+
+#### `DELETE /api/v1/daily-reports/{report_id}`
+**Descripción**: Eliminar reporte  
+**Permisos**: Manager o Admin
+
+---
+
+## 🔐 Tabla de Permisos por Endpoint
+
+| Recurso | Crear | Leer | Actualizar | Eliminar |
+|---------|-------|------|------------|----------|
+| **Usuarios** | Dealer+ | Auth | Usuario/Admin | Admin |
+| **Sesiones** | Dealer+ | Auth | Dealer+ | Manager+ |
+| **Transacciones** | Auth | Auth | Dealer+* | Dealer+ |
+| **Bonos** | Dealer+ | Auth | Dealer+* | Dealer+ |
+| **Jackpot Prices** | Dealer+ | Auth | Dealer+* | Dealer+ |
+| **Daily Reports** | Manager+ | Manager+ | Manager+ | Manager+ |
+
+**Leyenda**:
+- `Auth`: Usuario autenticado
+- `Dealer+`: Dealer, Manager o Admin
+- `Manager+`: Manager o Admin
+- `*`: Si la sesión está cerrada, solo Manager+ puede modificar
+
+---
+
+## 📝 Notas Importantes
+
+### Restricciones de Sesiones Cerradas
+Una vez que una sesión tiene `end_time` (está cerrada):
+- ✅ **Managers y Admins** pueden modificar transacciones, bonos y premios
+- ❌ **Dealers** NO pueden modificar datos de sesiones cerradas
+
+### Validaciones Comunes
+- Todos los IDs de referencias deben existir en la base de datos
+- Las sesiones deben estar activas para crear nuevos registros
+- Los usuarios tipo USER pueden tener username/password opcionales
+- Dealers, Managers y Admins requieren username y password obligatorios

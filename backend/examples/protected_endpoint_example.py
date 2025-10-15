@@ -39,7 +39,7 @@ async def get_profile(current_user: UserDomain = Depends(get_current_active_user
         "message": f"Hola {current_user.name}!",
         "user": {
             "id": current_user.id,
-            "email": current_user.email,
+            "username": current_user.username,
             "name": current_user.name,
             "roles": [role.value for role in current_user.roles]
         }
@@ -198,7 +198,7 @@ async def delete_user(
     # Lógica de eliminación aquí...
     return {
         "message": f"Usuario {user_id} eliminado exitosamente",
-        "deleted_by": current_user.email
+        "deleted_by": current_user.username
     }
 
 
@@ -251,7 +251,7 @@ async def update_system_settings(
     return {
         "message": "Configuración actualizada exitosamente",
         "settings": settings,
-        "updated_by": current_user.email
+        "updated_by": current_user.username
     }
 
 

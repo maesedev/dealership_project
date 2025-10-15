@@ -20,12 +20,12 @@ class AuthService:
         self.user_service = UserService()
         self.auth_utils = AuthUtils()
     
-    async def login(self, email: str, password: str) -> Optional[dict]:
+    async def login(self, username: str, password: str) -> Optional[dict]:
         """
         Autenticar un usuario y generar un token JWT.
         
         Args:
-            email: Email del usuario
+            username: Username del usuario
             password: Contraseña del usuario
         
         Returns:
@@ -33,7 +33,7 @@ class AuthService:
             None si las credenciales son inválidas
         """
         # Autenticar usuario usando el servicio de usuarios
-        user = await self.user_service.authenticate_user(email=email, password=password)
+        user = await self.user_service.authenticate_user(username=username, password=password)
         
         if not user:
             return None
@@ -41,7 +41,7 @@ class AuthService:
         # Generar token JWT
         token_data = {
             "sub": user.id,  # Subject: ID del usuario
-            "email": user.email,
+            "username": user.username,
             "roles": [role.value for role in user.roles],
             "name": user.name
         }
@@ -120,7 +120,7 @@ class AuthService:
         # Generar nuevo token
         token_data = {
             "sub": user.id,
-            "email": user.email,
+            "username": user.username,
             "roles": [role.value for role in user.roles],
             "name": user.name
         }
