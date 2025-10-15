@@ -8,6 +8,18 @@ from datetime import datetime, date
 from pydantic import BaseModel, field_validator
 
 
+class JackpotWinEntrySchema(BaseModel):
+    """Schema para entrada de jackpot ganado"""
+    jackpot_win_id: str
+    sum: int
+
+
+class BonoEntrySchema(BaseModel):
+    """Schema para entrada de bono otorgado"""
+    bono_id: str
+    sum: int
+
+
 class DailyReportCreateSchema(BaseModel):
     """Schema para crear un reporte diario"""
     date: date
@@ -16,6 +28,8 @@ class DailyReportCreateSchema(BaseModel):
     ganancias: int = 0
     gastos: int = 0
     sessions: Optional[List[str]] = []
+    jackpot_wins: Optional[List[JackpotWinEntrySchema]] = []
+    bonos: Optional[List[BonoEntrySchema]] = []
     comment: Optional[str] = None
     
     @field_validator('date')
@@ -38,6 +52,8 @@ class DailyReportUpdateSchema(BaseModel):
     ganancias: Optional[int] = None
     gastos: Optional[int] = None
     sessions: Optional[List[str]] = None
+    jackpot_wins: Optional[List[JackpotWinEntrySchema]] = None
+    bonos: Optional[List[BonoEntrySchema]] = None
     comment: Optional[str] = None
     
     @field_validator('reik', 'jackpot', 'ganancias', 'gastos')
@@ -56,6 +72,8 @@ class DailyReportResponseSchema(BaseModel):
     ganancias: int
     gastos: int
     sessions: Optional[List[str]] = []
+    jackpot_wins: Optional[List[JackpotWinEntrySchema]] = []
+    bonos: Optional[List[BonoEntrySchema]] = []
     comment: Optional[str] = None
     created_at: datetime
     updated_at: datetime

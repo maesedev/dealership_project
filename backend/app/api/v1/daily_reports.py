@@ -8,6 +8,8 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException, Depends, status
 from app.services.daily_report_service.service import DailyReportService
 from app.services.session_service.service import SessionService
+from app.services.jackpot_price_service.service import JackpotPriceService
+from app.services.bono_service.service import BonoService
 from app.shared.schemas.daily_report_schemas import (
     DailyReportCreateSchema,
     DailyReportUpdateSchema,
@@ -15,13 +17,16 @@ from app.shared.schemas.daily_report_schemas import (
     DailyReportListResponseSchema,
     DailyReportStatsSchema
 )
+from app.domains.daily_report.domain import JackpotWinEntry, BonoEntry
 from app.domains.user.domain import UserDomain
 from app.shared.dependencies.auth import (
     get_current_manager_or_admin
 )
 from app.shared.dependencies.services import (
     get_daily_report_service,
-    get_session_service
+    get_session_service,
+    get_jackpot_price_service,
+    get_bono_service
 )
 
 # Zona horaria de Bogotá
@@ -34,7 +39,9 @@ router = APIRouter()
 async def generate_daily_report_from_sessions(
     report_date: date, 
     session_service: SessionService,
-    daily_report_service: DailyReportService
+    daily_report_service: DailyReportService,
+    jackpot_price_service: JackpotPriceService,
+    bono_service: BonoService
 ):
     """
     Genera un reporte diario a partir de las sesiones del día.
@@ -43,6 +50,8 @@ async def generate_daily_report_from_sessions(
     - reik de todas las sesiones
     - jackpot de todas las sesiones
     - costo del dealer (duración de sesión × hourly_pay)
+    - jackpots ganados por usuarios
+    - bonos otorgados
     """
     # Obtener todas las sesiones del día
     start_of_day = datetime.combine(report_date, datetime.min.time())
@@ -55,6 +64,8 @@ async def generate_daily_report_from_sessions(
     total_jackpot = 0
     total_gastos = 0
     session_ids = []
+    jackpot_wins_list = []
+    bonos_list = []
     
     # Sumar valores de cada sesión
     for session in sessions:
@@ -74,6 +85,34 @@ async def generate_daily_report_from_sessions(
             dealer_cost = duration_hours * session.hourly_pay
             total_gastos += int(dealer_cost)
     
+    # Obtener jackpots ganados del día (filtrando por rango de fechas)
+    jackpots = await jackpot_price_service.filter_jackpots(
+        date_from=start_of_day,
+        date_to=end_of_day,
+        limit=1000
+    )
+    
+    # Crear lista de jackpot_wins
+    for jackpot in jackpots:
+        jackpot_wins_list.append(JackpotWinEntry(
+            jackpot_win_id=jackpot.id,
+            sum=jackpot.value
+        ))
+    
+    # Obtener bonos del día (filtrando por rango de fechas)
+    bonos = await bono_service.filter_bonos(
+        date_from=start_of_day,
+        date_to=end_of_day,
+        limit=1000
+    )
+    
+    # Crear lista de bonos
+    for bono in bonos:
+        bonos_list.append(BonoEntry(
+            bono_id=bono.id,
+            sum=bono.value
+        ))
+    
     # Ganancias = reik + jackpot (puede ajustarse según lógica de negocio)
     total_ganancias = total_reik + total_jackpot
     
@@ -85,7 +124,9 @@ async def generate_daily_report_from_sessions(
         ganancias=total_ganancias,
         gastos=total_gastos,
         sessions=session_ids,
-        comment=f"Reporte generado automáticamente con {len(sessions)} sesiones"
+        jackpot_wins=jackpot_wins_list,
+        bonos=bonos_list,
+        comment=f"Reporte generado automáticamente con {len(sessions)} sesiones, {len(jackpot_wins_list)} jackpots y {len(bonos_list)} bonos"
     )
     
     return report
@@ -96,7 +137,9 @@ async def get_daily_report_by_date(
     report_date: date,
     current_user: UserDomain = Depends(get_current_manager_or_admin),
     daily_report_service: DailyReportService = Depends(get_daily_report_service),
-    session_service: SessionService = Depends(get_session_service)
+    session_service: SessionService = Depends(get_session_service),
+    jackpot_price_service: JackpotPriceService = Depends(get_jackpot_price_service),
+    bono_service: BonoService = Depends(get_bono_service)
 ):
     """
     Obtener reporte diario por fecha.
@@ -124,7 +167,10 @@ async def get_daily_report_by_date(
                 await daily_report_service.delete_report(existing_report.id)
             
             # Generar nuevo reporte con datos actuales
-            report = await generate_daily_report_from_sessions(report_date, session_service, daily_report_service)
+            report = await generate_daily_report_from_sessions(
+                report_date, session_service, daily_report_service,
+                jackpot_price_service, bono_service
+            )
         else:
             # Si es fecha pasada, usar comportamiento normal
             # Intentar obtener el reporte existente
@@ -132,7 +178,10 @@ async def get_daily_report_by_date(
             
             # Si no existe, generarlo automáticamente
             if not report:
-                report = await generate_daily_report_from_sessions(report_date, session_service, daily_report_service)
+                report = await generate_daily_report_from_sessions(
+                    report_date, session_service, daily_report_service,
+                    jackpot_price_service, bono_service
+                )
         
         return DailyReportResponseSchema(
             id=report.id,
@@ -142,6 +191,8 @@ async def get_daily_report_by_date(
             ganancias=report.ganancias,
             gastos=report.gastos,
             sessions=report.sessions,
+            jackpot_wins=[jw.dict() for jw in report.jackpot_wins] if report.jackpot_wins else [],
+            bonos=[b.dict() for b in report.bonos] if report.bonos else [],
             comment=report.comment,
             created_at=report.created_at,
             updated_at=report.updated_at,
@@ -179,6 +230,8 @@ async def get_daily_report(
         ganancias=report.ganancias,
         gastos=report.gastos,
         sessions=report.sessions,
+        jackpot_wins=[jw.dict() for jw in report.jackpot_wins] if report.jackpot_wins else [],
+        bonos=[b.dict() for b in report.bonos] if report.bonos else [],
         comment=report.comment,
         created_at=report.created_at,
         updated_at=report.updated_at,
@@ -220,6 +273,8 @@ async def get_daily_reports(
             ganancias=r.ganancias,
             gastos=r.gastos,
             sessions=r.sessions,
+            jackpot_wins=[jw.dict() for jw in r.jackpot_wins] if r.jackpot_wins else [],
+            bonos=[b.dict() for b in r.bonos] if r.bonos else [],
             comment=r.comment,
             created_at=r.created_at,
             updated_at=r.updated_at,
@@ -261,6 +316,8 @@ async def get_profitable_reports(
             ganancias=r.ganancias,
             gastos=r.gastos,
             sessions=r.sessions,
+            jackpot_wins=[jw.dict() for jw in r.jackpot_wins] if r.jackpot_wins else [],
+            bonos=[b.dict() for b in r.bonos] if r.bonos else [],
             comment=r.comment,
             created_at=r.created_at,
             updated_at=r.updated_at,
@@ -298,6 +355,8 @@ async def create_daily_report(
             ganancias=report_data.ganancias,
             gastos=report_data.gastos,
             sessions=report_data.sessions,
+            jackpot_wins=report_data.jackpot_wins,
+            bonos=report_data.bonos,
             comment=report_data.comment
         )
         
@@ -309,6 +368,8 @@ async def create_daily_report(
             ganancias=report.ganancias,
             gastos=report.gastos,
             sessions=report.sessions,
+            jackpot_wins=[jw.dict() for jw in report.jackpot_wins] if report.jackpot_wins else [],
+            bonos=[b.dict() for b in report.bonos] if report.bonos else [],
             comment=report.comment,
             created_at=report.created_at,
             updated_at=report.updated_at,
@@ -345,6 +406,10 @@ async def update_daily_report(
             update_dict["gastos"] = report_data.gastos
         if report_data.sessions is not None:
             update_dict["sessions"] = report_data.sessions
+        if report_data.jackpot_wins is not None:
+            update_dict["jackpot_wins"] = report_data.jackpot_wins
+        if report_data.bonos is not None:
+            update_dict["bonos"] = report_data.bonos
         if report_data.comment is not None:
             update_dict["comment"] = report_data.comment
         
@@ -363,6 +428,8 @@ async def update_daily_report(
             ganancias=report.ganancias,
             gastos=report.gastos,
             sessions=report.sessions,
+            jackpot_wins=[jw.dict() for jw in report.jackpot_wins] if report.jackpot_wins else [],
+            bonos=[b.dict() for b in report.bonos] if report.bonos else [],
             comment=report.comment,
             created_at=report.created_at,
             updated_at=report.updated_at,

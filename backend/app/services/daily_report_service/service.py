@@ -7,7 +7,7 @@ Se encarga de la comunicación con la base de datos y orquestación de operacion
 from typing import List, Optional
 from datetime import datetime, date, timezone
 from bson import ObjectId
-from app.domains.daily_report.domain import DailyReportDomain, DailyReportDomainService
+from app.domains.daily_report.domain import DailyReportDomain, DailyReportDomainService, JackpotWinEntry, BonoEntry
 from app.infrastructure.database.connection import get_database
 
 
@@ -24,7 +24,9 @@ class DailyReportService:
     
     async def create_daily_report(self, report_date: date, reik: int = 0, 
                                  jackpot: int = 0, ganancias: int = 0,
-                                 gastos: int = 0, sessions: List[str] = None, 
+                                 gastos: int = 0, sessions: List[str] = None,
+                                 jackpot_wins: List[JackpotWinEntry] = None,
+                                 bonos: List[BonoEntry] = None,
                                  comment: str = None) -> DailyReportDomain:
         """
         Crear un nuevo reporte diario usando el dominio.
@@ -42,6 +44,8 @@ class DailyReportService:
             ganancias=ganancias,
             gastos=gastos,
             sessions=sessions,
+            jackpot_wins=jackpot_wins,
+            bonos=bonos,
             comment=comment
         )
         
@@ -166,6 +170,11 @@ class DailyReportService:
         # Actualizar campos
         for key, value in updates.items():
             if value is not None and hasattr(existing_report, key):
+                # Convertir diccionarios a objetos si es necesario
+                if key == 'jackpot_wins' and isinstance(value, list):
+                    value = [JackpotWinEntry(**item) if isinstance(item, dict) else item for item in value]
+                elif key == 'bonos' and isinstance(value, list):
+                    value = [BonoEntry(**item) if isinstance(item, dict) else item for item in value]
                 setattr(existing_report, key, value)
         
         existing_report.updated_at = datetime.now(timezone.utc)

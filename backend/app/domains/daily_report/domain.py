@@ -2,9 +2,21 @@
 Dominio DailyReport - Lógica de negocio pura para reportes diarios.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime, date, timezone
 from pydantic import BaseModel, field_validator
+
+
+class JackpotWinEntry(BaseModel):
+    """Entrada de jackpot ganado"""
+    jackpot_win_id: str
+    sum: int
+
+
+class BonoEntry(BaseModel):
+    """Entrada de bono otorgado"""
+    bono_id: str
+    sum: int
 
 
 class DailyReportDomain(BaseModel):
@@ -19,6 +31,8 @@ class DailyReportDomain(BaseModel):
     ganancias: int = 0
     gastos: int = 0
     sessions: Optional[List[str]] = []
+    jackpot_wins: Optional[List[JackpotWinEntry]] = []
+    bonos: Optional[List[BonoEntry]] = []
     comment: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -86,7 +100,8 @@ class DailyReportDomainService:
     @staticmethod
     def create_daily_report(report_date: date, reik: int = 0, jackpot: int = 0,
                            ganancias: int = 0, gastos: int = 0, 
-                           sessions: List[str] = None, comment: str = None) -> DailyReportDomain:
+                           sessions: List[str] = None, jackpot_wins: List[JackpotWinEntry] = None,
+                           bonos: List[BonoEntry] = None, comment: str = None) -> DailyReportDomain:
         """
         Crear un nuevo reporte diario con validación de reglas de negocio.
         """
@@ -97,6 +112,8 @@ class DailyReportDomainService:
             ganancias=ganancias,
             gastos=gastos,
             sessions=sessions if sessions is not None else [],
+            jackpot_wins=jackpot_wins if jackpot_wins is not None else [],
+            bonos=bonos if bonos is not None else [],
             comment=comment,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
