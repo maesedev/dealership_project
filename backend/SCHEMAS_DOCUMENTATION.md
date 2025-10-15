@@ -120,7 +120,7 @@ db.sessions.createIndex({ "end_time": 1 })
   "user_id": "usr_507f1f77bcf86cd799439011",
   "session_id": "ses_507f1f77bcf86cd799439012",
   "cantidad": 10000,
-  "operation_type": "IN",
+  "operation_type": "CASH IN",
   "transaction_media": "DIGITAL",
   "comment": "Pago de cliente VIP"
 }
@@ -133,12 +133,12 @@ db.sessions.createIndex({ "end_time": 1 })
 | **user_id** | String | ID del usuario que realizó la transacción (FK → USER) | Requerido |
 | **session_id** | String | ID de la sesión asociada (FK → SESSION) | Requerido |
 | **cantidad** | Integer/Float | Monto de la transacción | Requerido, > 0 |
-| **operation_type** | String | Tipo de operación | Enum: "IN", "OUT" |
+| **operation_type** | String | Tipo de operación | Enum: "CASH IN", "CASH OUT" |
 | **transaction_media** | String | Medio de la transacción | Enum: "DIGITAL", "CASH" |
 | **comment** | String | Comentario sobre la transacción | Opcional |
 
 ### Validaciones
-- `operation_type` solo puede ser: **"IN"** (entrada) o **"OUT"** (salida)
+- `operation_type` solo puede ser: **"CASH IN"** (entrada) o **"CASH OUT"** (salida)
 - `transaction_media` solo puede ser: **"DIGITAL"** o **"CASH"**
 - `user_id` debe existir en la colección USER
 - `session_id` debe existir en la colección SESSION

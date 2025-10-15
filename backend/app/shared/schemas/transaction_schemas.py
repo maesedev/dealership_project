@@ -5,7 +5,7 @@ Estos schemas se usan para la validación de entrada/salida de la API.
 
 from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from app.domains.transaction.domain import OperationType, TransactionMedia
 
 
@@ -56,7 +56,18 @@ class TransactionResponseSchema(BaseModel):
     comment: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    signed_amount: int
+    signed_amount: Optional[int] = None
+    
+    @model_validator(mode='after')
+    def calculate_signed_amount(self):
+        """Calcular signed_amount si no está presente"""
+        if self.signed_amount is None:
+            # CASH IN es positivo, CASH OUT es negativo
+            if self.operation_type == OperationType.IN:
+                self.signed_amount = self.cantidad
+            else:
+                self.signed_amount = -self.cantidad
+        return self
     
     class Config:
         from_attributes = True

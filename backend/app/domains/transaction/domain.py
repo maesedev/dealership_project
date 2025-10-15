@@ -10,8 +10,8 @@ from enum import Enum
 
 class OperationType(str, Enum):
     """Tipos de operación para transacciones"""
-    IN = "IN"
-    OUT = "OUT"
+    IN = "CASH IN"
+    OUT = "CASH OUT"
 
 
 class TransactionMedia(str, Enum):
@@ -83,7 +83,7 @@ class TransactionDomain(BaseModel):
         
         # Validar operation_type
         if self.operation_type not in [OperationType.IN, OperationType.OUT]:
-            errors.append("El tipo de operación debe ser IN o OUT")
+            errors.append("El tipo de operación debe ser CASH IN o CASH OUT")
         
         # Validar transaction_media
         if self.transaction_media not in [TransactionMedia.DIGITAL, TransactionMedia.CASH]:

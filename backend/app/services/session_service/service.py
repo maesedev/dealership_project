@@ -145,6 +145,24 @@ class SessionService:
         
         return None
     
+    async def get_active_sessions_by_dealer(self, dealer_id: str, skip: int = 0, 
+                                           limit: int = 100) -> List[SessionDomain]:
+        """
+        Obtener todas las sesiones activas de un dealer específico.
+        """
+        cursor = self.collection.find({
+            "dealer_id": dealer_id,
+            "end_time": None
+        }).skip(skip).limit(limit).sort("start_time", -1)
+        sessions = []
+        
+        async for session_data in cursor:
+            session_data["id"] = str(session_data["_id"])
+            del session_data["_id"]
+            sessions.append(SessionDomain(**session_data))
+        
+        return sessions
+    
     async def update_session(self, session_id: str, **updates) -> Optional[SessionDomain]:
         """
         Actualizar una sesión existente.

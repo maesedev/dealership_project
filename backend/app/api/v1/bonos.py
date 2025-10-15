@@ -133,26 +133,70 @@ async def get_bonos(
     )
 
 
+@router.get("/session/{session_id}", response_model=BonoListResponseSchema)
+async def get_bonos_by_session(
+    session_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: UserDomain = Depends(get_current_active_user),
+    bono_service: BonoService = Depends(get_bono_service),
+    session_service: SessionService = Depends(get_session_service)
+):
+    """
+    Obtener todos los bonos de una sesión específica.
+    
+    Permisos:
+    - Cualquier usuario autenticado puede consultar bonos
+    
+    Args:
+        session_id: ID de la sesión
+        skip: Número de registros a saltar (paginación)
+        limit: Número máximo de registros a retornar
+    
+    Returns:
+        Lista de bonos de la sesión ordenados por fecha de creación (más recientes primero)
+    """
+    # Verificar que la sesión existe
+    session = await session_service.get_session_by_id(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sesión con ID {session_id} no encontrada"
+        )
+    
+    bonos = await bono_service.get_bonos_by_session(session_id, skip=skip, limit=limit)
+    total = len(bonos)
+    bono_responses = [BonoResponseSchema(**b.dict()) for b in bonos]
+    
+    return BonoListResponseSchema(
+        bonos=bono_responses,
+        total=total,
+        page=skip // limit + 1 if limit > 0 else 1,
+        limit=limit
+    )
+
+
 @router.put("/{bono_id}", response_model=BonoResponseSchema)
 async def update_bono(
     bono_id: str,
     bono_data: BonoUpdateSchema,
     current_user: UserDomain = Depends(get_current_dealer_or_higher),
     bono_service: BonoService = Depends(get_bono_service),
-    user_service: UserService = Depends(get_user_service),
     session_service: SessionService = Depends(get_session_service)
 ):
     """
     Actualizar un bono.
     Solo Dealers, Managers y Admins pueden actualizar bonos.
     
+    Campos actualizables:
+    - value
+    - comment
+    
+    Nota: Los campos user_id y session_id NO se pueden modificar una vez creado el bono.
+    
     Restricciones adicionales:
     - Si la sesión está terminada (cerrada), solo Managers y Admins pueden modificar el bono
     - Dealers NO pueden modificar bonos de sesiones cerradas
-    
-    Validaciones:
-    - Si se actualiza user_id, debe existir en la base de datos
-    - Si se actualiza session_id, debe existir en la base de datos
     """
     try:
         # Obtener el bono actual para verificar la sesión
@@ -185,30 +229,8 @@ async def update_bono(
                     detail="No puedes modificar bonos de sesiones cerradas. Solo Managers y Admins pueden hacerlo."
                 )
         
-        # Si se actualiza user_id, verificar que existe
-        if bono_data.user_id is not None:
-            user = await user_service.get_user_by_id(bono_data.user_id)
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Usuario con ID {bono_data.user_id} no encontrado"
-                )
-        
-        # Si se actualiza session_id, verificar que existe
-        if bono_data.session_id is not None:
-            new_session = await session_service.get_session_by_id(bono_data.session_id)
-            if not new_session:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Sesión con ID {bono_data.session_id} no encontrada"
-                )
-        
         # Construir diccionario de actualizaciones
         update_dict = {}
-        if bono_data.user_id is not None:
-            update_dict["user_id"] = bono_data.user_id
-        if bono_data.session_id is not None:
-            update_dict["session_id"] = bono_data.session_id
         if bono_data.value is not None:
             update_dict["value"] = bono_data.value
         if bono_data.comment is not None:

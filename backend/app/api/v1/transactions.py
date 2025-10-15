@@ -132,22 +132,68 @@ async def get_transactions(
     )
 
 
+@router.get("/session/{session_id}", response_model=TransactionListResponseSchema)
+async def get_transactions_by_session(
+    session_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: UserDomain = Depends(get_current_active_user),
+    transaction_service: TransactionService = Depends(get_transaction_service),
+    session_service: SessionService = Depends(get_session_service)
+):
+    """
+    Obtener todas las transacciones de una sesión específica.
+    
+    Permisos:
+    - Cualquier usuario autenticado puede consultar transacciones
+    
+    Args:
+        session_id: ID de la sesión
+        skip: Número de registros a saltar (paginación)
+        limit: Número máximo de registros a retornar
+    
+    Returns:
+        Lista de transacciones de la sesión ordenadas por fecha de creación (más recientes primero)
+    """
+    # Verificar que la sesión existe
+    session = await session_service.get_session_by_id(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sesión con ID {session_id} no encontrada"
+        )
+    
+    transactions = await transaction_service.get_transactions_by_session(session_id, skip=skip, limit=limit)
+    total = len(transactions)
+    transaction_responses = [TransactionResponseSchema(**t.dict()) for t in transactions]
+    
+    return TransactionListResponseSchema(
+        transactions=transaction_responses,
+        total=total,
+        page=skip // limit + 1 if limit > 0 else 1,
+        limit=limit
+    )
+
+
 @router.put("/{transaction_id}", response_model=TransactionResponseSchema)
 async def update_transaction(
     transaction_id: str,
     transaction_data: TransactionUpdateSchema,
     current_user: UserDomain = Depends(get_current_dealer_or_higher),
     transaction_service: TransactionService = Depends(get_transaction_service),
-    user_service: UserService = Depends(get_user_service),
     session_service: SessionService = Depends(get_session_service)
 ):
     """
     Actualizar una transacción.
     Solo Dealers, Managers y Admins pueden actualizar transacciones.
     
-    Validaciones:
-    - Si se actualiza user_id, debe existir en la base de datos
-    - Si se actualiza session_id, debe existir en la base de datos
+    Campos actualizables:
+    - cantidad
+    - operation_type
+    - transaction_media
+    - comment
+    
+    Nota: Los campos user_id y session_id NO se pueden modificar una vez creada la transacción.
     
     Restricciones adicionales:
     - Si la sesión está terminada (cerrada), solo Managers y Admins pueden modificar la transacción
@@ -185,30 +231,8 @@ async def update_transaction(
                     detail="No puedes modificar transacciones de sesiones cerradas. Solo Managers y Admins pueden hacerlo."
                 )
         
-        # Si se actualiza user_id, verificar que existe
-        if transaction_data.user_id is not None:
-            user = await user_service.get_user_by_id(transaction_data.user_id)
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Usuario con ID {transaction_data.user_id} no encontrado"
-                )
-        
-        # Si se actualiza session_id, verificar que existe
-        if transaction_data.session_id is not None:
-            new_session = await session_service.get_session_by_id(transaction_data.session_id)
-            if not new_session:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Sesión con ID {transaction_data.session_id} no encontrada"
-                )
-        
         # Construir diccionario de actualizaciones
         update_dict = {}
-        if transaction_data.user_id is not None:
-            update_dict["user_id"] = transaction_data.user_id
-        if transaction_data.session_id is not None:
-            update_dict["session_id"] = transaction_data.session_id
         if transaction_data.cantidad is not None:
             update_dict["cantidad"] = transaction_data.cantidad
         if transaction_data.operation_type is not None:

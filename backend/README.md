@@ -381,6 +381,60 @@ python examples/test_auth.py
 - `skip`: int (default: 0)
 - `limit`: int (default: 100)
 
+#### `GET /api/v1/sessions/active/user/{user_id}`
+**Descripción**: Obtener todas las sesiones activas de un usuario específico  
+**Permisos**: Usuario autenticado  
+**Path Parameters**:
+- `user_id`: string (ID del usuario/dealer)
+
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+
+**Response**:
+```json
+{
+  "sessions": [
+    {
+      "id": "string",
+      "dealer_id": "string",
+      "start_time": "datetime",
+      "end_time": null,
+      "jackpot": 0,
+      "reik": 0,
+      "tips": 0,
+      "hourly_pay": 4000,
+      "comment": "string",
+      "created_at": "datetime",
+      "updated_at": "datetime",
+      "is_active": true,
+      "duration_hours": null,
+      "total_earnings": 4000
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 100
+}
+```
+**Validaciones**:
+- El `user_id` debe existir en la base de datos
+- Solo devuelve sesiones sin `end_time` (activas)
+- Ordenadas por `start_time` descendente (más recientes primero)
+
+**Ejemplo de uso**:
+```python
+import requests
+
+url = "http://localhost:8000/api/v1/sessions/active/user/68efb81568be6f15465de821"
+headers = {
+  'Authorization': 'Bearer {tu_token}'
+}
+
+response = requests.get(url, headers=headers)
+print(response.json())
+```
+
 #### `PUT /api/v1/sessions/{session_id}`
 **Descripción**: Actualizar sesión  
 **Permisos**: Dealer, Manager o Admin  
@@ -426,8 +480,8 @@ python examples/test_auth.py
   "user_id": "string (ID del usuario)",
   "session_id": "string (ID de la sesión)",
   "cantidad": "int",
-  "operation_type": "COMPRA | VENTA",
-  "transaction_media": "EFECTIVO | NEQUI | DAVIPLATA | BANCOLOMBIA",
+  "operation_type": "CASH IN | CASH OUT",
+  "transaction_media": "DIGITAL | CASH",
   "comment": "string (opcional)"
 }
 ```
@@ -448,20 +502,68 @@ python examples/test_auth.py
 - `user_id`: string (opcional, filtra por usuario)
 - `session_id`: string (opcional, filtra por sesión)
 
+#### `GET /api/v1/transactions/session/{session_id}`
+**Descripción**: Obtener todas las transacciones de una sesión específica  
+**Permisos**: Usuario autenticado  
+**Path Parameters**:
+- `session_id`: string (ID de la sesión)
+
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+
+**Response**:
+```json
+{
+  "transactions": [
+    {
+      "id": "string",
+      "user_id": "string",
+      "session_id": "string",
+      "cantidad": 15000,
+      "operation_type": "CASH IN",
+      "transaction_media": "DIGITAL",
+      "comment": "string",
+      "created_at": "datetime",
+      "updated_at": "datetime",
+      "signed_amount": 15000
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 100
+}
+```
+**Validaciones**:
+- El `session_id` debe existir en la base de datos
+- Ordenadas por `created_at` descendente (más recientes primero)
+
+**Ejemplo de uso**:
+```python
+import requests
+
+url = "http://localhost:8000/api/v1/transactions/session/68f01f265b4799044fbfbd66"
+headers = {
+  'Authorization': 'Bearer {tu_token}'
+}
+
+response = requests.get(url, headers=headers)
+print(response.json())
+```
+
 #### `PUT /api/v1/transactions/{transaction_id}`
 **Descripción**: Actualizar transacción  
 **Permisos**: Dealer, Manager o Admin  
 **Request Body**:
 ```json
 {
-  "user_id": "string (opcional)",
-  "session_id": "string (opcional)",
   "cantidad": "int (opcional)",
-  "operation_type": "COMPRA | VENTA (opcional)",
-  "transaction_media": "EFECTIVO | NEQUI | DAVIPLATA | BANCOLOMBIA (opcional)",
+  "operation_type": "CASH IN | CASH OUT (opcional)",
+  "transaction_media": "DIGITAL | CASH (opcional)",
   "comment": "string (opcional)"
 }
 ```
+**Nota**: Los campos `user_id` y `session_id` NO se pueden modificar una vez creada la transacción.  
 **Restricción**: Si la sesión está cerrada, solo Manager y Admin pueden modificar
 
 #### `DELETE /api/v1/transactions/{transaction_id}`
@@ -501,18 +603,63 @@ python examples/test_auth.py
 - `user_id`: string (opcional, filtra por usuario)
 - `session_id`: string (opcional, filtra por sesión)
 
+#### `GET /api/v1/bonos/session/{session_id}`
+**Descripción**: Obtener todos los bonos de una sesión específica  
+**Permisos**: Usuario autenticado  
+**Path Parameters**:
+- `session_id`: string (ID de la sesión)
+
+**Query Parameters**:
+- `skip`: int (default: 0)
+- `limit`: int (default: 100)
+
+**Response**:
+```json
+{
+  "bonos": [
+    {
+      "id": "string",
+      "user_id": "string",
+      "session_id": "string",
+      "value": 5000,
+      "comment": "string",
+      "created_at": "datetime",
+      "updated_at": "datetime"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 100
+}
+```
+**Validaciones**:
+- El `session_id` debe existir en la base de datos
+- Ordenados por `created_at` descendente (más recientes primero)
+
+**Ejemplo de uso**:
+```python
+import requests
+
+url = "http://localhost:8000/api/v1/bonos/session/68f01f265b4799044fbfbd66"
+headers = {
+  'Authorization': 'Bearer {tu_token}'
+}
+
+response = requests.get(url, headers=headers)
+print(response.json())
+```
+
 #### `PUT /api/v1/bonos/{bono_id}`
 **Descripción**: Actualizar bono  
 **Permisos**: Dealer, Manager o Admin  
 **Request Body**:
 ```json
 {
-  "user_id": "string (opcional)",
-  "session_id": "string (opcional)",
   "value": "int (opcional)",
   "comment": "string (opcional)"
 }
 ```
+**Nota**: Los campos `user_id` y `session_id` NO se pueden modificar una vez creado el bono.  
 **Restricción**: Si la sesión está cerrada, solo Manager y Admin pueden modificar
 
 #### `DELETE /api/v1/bonos/{bono_id}`

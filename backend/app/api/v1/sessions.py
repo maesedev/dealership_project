@@ -140,6 +140,49 @@ async def get_active_sessions(
     )
 
 
+@router.get("/active/user/{user_id}", response_model=SessionListResponseSchema)
+async def get_active_sessions_by_user(
+    user_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: UserDomain = Depends(get_current_active_user),
+    session_service: SessionService = Depends(get_session_service),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Obtener todas las sesiones activas de un usuario específico.
+    
+    Permisos:
+    - Cualquier usuario autenticado puede consultar sesiones activas
+    
+    Args:
+        user_id: ID del usuario (dealer) del cual obtener sesiones activas
+        skip: Número de registros a saltar (paginación)
+        limit: Número máximo de registros a retornar
+    
+    Returns:
+        Lista de sesiones activas del usuario
+    """
+    # Verificar que el usuario existe
+    user = await user_service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Usuario con ID {user_id} no encontrado"
+        )
+    
+    sessions = await session_service.get_active_sessions_by_dealer(user_id, skip=skip, limit=limit)
+    total = len(sessions)
+    session_responses = [SessionResponseSchema(**session.dict()) for session in sessions]
+    
+    return SessionListResponseSchema(
+        sessions=session_responses,
+        total=total,
+        page=skip // limit + 1 if limit > 0 else 1,
+        limit=limit
+    )
+
+
 @router.put("/{session_id}", response_model=SessionResponseSchema)
 async def update_session(
     session_id: str,
