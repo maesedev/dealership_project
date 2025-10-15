@@ -3,7 +3,7 @@ Dominio DailyReport - Lógica de negocio pura para reportes diarios.
 """
 
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from pydantic import BaseModel, field_validator
 
 

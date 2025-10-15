@@ -3,7 +3,7 @@ Endpoints para la gestión de reportes diarios.
 """
 
 from typing import List
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException, Depends, status
 from app.services.daily_report_service.service import DailyReportService

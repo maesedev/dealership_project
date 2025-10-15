@@ -49,6 +49,8 @@ class DailyReportService:
         report_dict = daily_report.dict(exclude={"id"})
         report_dict["created_at"] = daily_report.created_at
         report_dict["updated_at"] = daily_report.updated_at
+        # Convertir date a string ISO para MongoDB
+        report_dict["date"] = report_date.isoformat()
         
         # Insertar en la base de datos
         result = await self.collection.insert_one(report_dict)
@@ -67,6 +69,9 @@ class DailyReportService:
         if report_data:
             report_data["id"] = str(report_data["_id"])
             del report_data["_id"]
+            # Convertir string de vuelta a date
+            if isinstance(report_data["date"], str):
+                report_data["date"] = datetime.fromisoformat(report_data["date"]).date()
             return DailyReportDomain(**report_data)
         
         return None
@@ -75,11 +80,16 @@ class DailyReportService:
         """
         Obtener un reporte por fecha.
         """
-        report_data = await self.collection.find_one({"date": report_date})
+        # Convertir date a string ISO para la consulta
+        date_str = report_date.isoformat()
+        report_data = await self.collection.find_one({"date": date_str})
         
         if report_data:
             report_data["id"] = str(report_data["_id"])
             del report_data["_id"]
+            # Convertir string de vuelta a date
+            if isinstance(report_data["date"], str):
+                report_data["date"] = datetime.fromisoformat(report_data["date"]).date()
             return DailyReportDomain(**report_data)
         
         return None
@@ -94,6 +104,9 @@ class DailyReportService:
         async for report_data in cursor:
             report_data["id"] = str(report_data["_id"])
             del report_data["_id"]
+            # Convertir string de vuelta a date
+            if isinstance(report_data["date"], str):
+                report_data["date"] = datetime.fromisoformat(report_data["date"]).date()
             reports.append(DailyReportDomain(**report_data))
         
         return reports
@@ -103,14 +116,20 @@ class DailyReportService:
         """
         Obtener reportes en un rango de fechas.
         """
+        # Convertir dates a strings ISO para la consulta
+        date_from_str = date_from.isoformat()
+        date_to_str = date_to.isoformat()
         cursor = self.collection.find({
-            "date": {"$gte": date_from, "$lte": date_to}
+            "date": {"$gte": date_from_str, "$lte": date_to_str}
         }).skip(skip).limit(limit).sort("date", -1)
         reports = []
         
         async for report_data in cursor:
             report_data["id"] = str(report_data["_id"])
             del report_data["_id"]
+            # Convertir string de vuelta a date
+            if isinstance(report_data["date"], str):
+                report_data["date"] = datetime.fromisoformat(report_data["date"]).date()
             reports.append(DailyReportDomain(**report_data))
         
         return reports
@@ -125,6 +144,9 @@ class DailyReportService:
         async for report_data in cursor:
             report_data["id"] = str(report_data["_id"])
             del report_data["_id"]
+            # Convertir string de vuelta a date
+            if isinstance(report_data["date"], str):
+                report_data["date"] = datetime.fromisoformat(report_data["date"]).date()
             report = DailyReportDomain(**report_data)
             if report.is_profitable():
                 reports.append(report)
@@ -224,9 +246,9 @@ class DailyReportService:
         if date_from or date_to:
             date_filter["date"] = {}
             if date_from:
-                date_filter["date"]["$gte"] = date_from
+                date_filter["date"]["$gte"] = date_from.isoformat()
             if date_to:
-                date_filter["date"]["$lte"] = date_to
+                date_filter["date"]["$lte"] = date_to.isoformat()
         
         # Contar reportes
         total_reports = await self.collection.count_documents(date_filter)
@@ -274,6 +296,9 @@ class DailyReportService:
         async for report_data in cursor:
             report_data["id"] = str(report_data["_id"])
             del report_data["_id"]
+            # Convertir string de vuelta a date
+            if isinstance(report_data["date"], str):
+                report_data["date"] = datetime.fromisoformat(report_data["date"]).date()
             report = DailyReportDomain(**report_data)
             
             net_profit = report.get_net_profit()

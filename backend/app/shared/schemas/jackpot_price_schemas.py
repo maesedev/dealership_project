@@ -5,7 +5,7 @@ Estos schemas se usan para la validación de entrada/salida de la API.
 
 from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class JackpotPriceCreateSchema(BaseModel):
@@ -52,7 +52,15 @@ class JackpotPriceResponseSchema(BaseModel):
     comment: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    is_high_value: bool
+    is_high_value: Optional[bool] = None
+    
+    @model_validator(mode='after')
+    def calculate_is_high_value(self):
+        """Calcular is_high_value si no está presente"""
+        if self.is_high_value is None:
+            # Considerar alto valor si es >= 10000
+            self.is_high_value = self.value >= 10000
+        return self
     
     class Config:
         from_attributes = True

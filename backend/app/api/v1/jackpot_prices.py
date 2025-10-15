@@ -117,17 +117,17 @@ async def get_jackpot_prices(
     Opcionalmente filtrar por user_id o session_id.
     """
     if user_id:
-        jackpots = await jackpot_price_service.get_jackpot_prices_by_user(user_id, skip=skip, limit=limit)
+        jackpots = await jackpot_price_service.get_jackpots_by_user(user_id, skip=skip, limit=limit)
     elif session_id:
-        jackpots = await jackpot_price_service.get_jackpot_prices_by_session(session_id, skip=skip, limit=limit)
+        jackpots = await jackpot_price_service.get_jackpots_by_session(session_id, skip=skip, limit=limit)
     else:
-        jackpots = await jackpot_price_service.get_all_jackpot_prices(skip=skip, limit=limit)
+        jackpots = await jackpot_price_service.get_all_jackpots(skip=skip, limit=limit)
     
     total = len(jackpots)
     jackpot_responses = [JackpotPriceResponseSchema(**j.dict()) for j in jackpots]
     
     return JackpotPriceListResponseSchema(
-        jackpot_prices=jackpot_responses,
+        jackpots=jackpot_responses,
         total=total,
         page=skip // limit + 1 if limit > 0 else 1,
         limit=limit
@@ -137,18 +137,19 @@ async def get_jackpot_prices(
 @router.get("/top/winners", response_model=JackpotPriceListResponseSchema)
 async def get_top_jackpot_winners(
     limit: int = 10,
+    threshold: int = 0,
     current_user: UserDomain = Depends(get_current_active_user),
     jackpot_price_service: JackpotPriceService = Depends(get_jackpot_price_service)
 ):
     """
     Obtener los top ganadores de jackpot (ordenados por valor descendente).
     """
-    jackpots = await jackpot_price_service.get_top_jackpot_prices(limit=limit)
+    jackpots = await jackpot_price_service.get_high_value_jackpots(threshold=threshold, skip=0, limit=limit)
     total = len(jackpots)
     jackpot_responses = [JackpotPriceResponseSchema(**j.dict()) for j in jackpots]
     
     return JackpotPriceListResponseSchema(
-        jackpot_prices=jackpot_responses,
+        jackpots=jackpot_responses,
         total=total,
         page=1,
         limit=limit
@@ -260,7 +261,7 @@ async def delete_jackpot_price(
     Eliminar un premio jackpot.
     Solo Dealers, Managers y Admins pueden eliminar premios jackpot.
     """
-    success = await jackpot_price_service.delete_jackpot_price(jackpot_id)
+    success = await jackpot_price_service.delete_jackpot(jackpot_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
