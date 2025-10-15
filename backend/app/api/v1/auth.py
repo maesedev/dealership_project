@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from app.shared.schemas.user_schemas import UserLoginSchema, TokenResponseSchema
 from app.services.auth_service.service import AuthService
 from app.shared.dependencies.auth import get_current_active_user
+from app.shared.dependencies.services import get_auth_service
 from app.domains.user.domain import UserDomain
 
 
@@ -13,7 +14,10 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=TokenResponseSchema, status_code=status.HTTP_200_OK)
-async def login(credentials: UserLoginSchema):
+async def login(
+    credentials: UserLoginSchema,
+    auth_service: AuthService = Depends(get_auth_service)
+):
     """
     Endpoint de autenticación - Login con email y contraseña.
     
@@ -45,7 +49,6 @@ async def login(credentials: UserLoginSchema):
     }
     ```
     """
-    auth_service = AuthService()
     
     # Intentar autenticar
     result = await auth_service.login(
@@ -100,8 +103,6 @@ async def refresh_token(current_user: UserDomain = Depends(get_current_active_us
     - 401: Token inválido o expirado
     - 403: Usuario inactivo
     """
-    auth_service = AuthService()
-    
     # Generar nuevo token directamente usando los datos del usuario actual
     from datetime import timedelta
     from app.core.config import settings

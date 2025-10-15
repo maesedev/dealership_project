@@ -2,7 +2,7 @@
 Dominio DailyReport - Lógica de negocio pura para reportes diarios.
 """
 
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 from pydantic import BaseModel, field_validator
 
@@ -18,6 +18,7 @@ class DailyReportDomain(BaseModel):
     jackpot: int = 0
     ganancias: int = 0
     gastos: int = 0
+    sessions: Optional[List[str]] = []
     comment: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -85,7 +86,7 @@ class DailyReportDomainService:
     @staticmethod
     def create_daily_report(report_date: date, reik: int = 0, jackpot: int = 0,
                            ganancias: int = 0, gastos: int = 0, 
-                           comment: str = None) -> DailyReportDomain:
+                           sessions: List[str] = None, comment: str = None) -> DailyReportDomain:
         """
         Crear un nuevo reporte diario con validación de reglas de negocio.
         """
@@ -95,6 +96,7 @@ class DailyReportDomainService:
             jackpot=jackpot,
             ganancias=ganancias,
             gastos=gastos,
+            sessions=sessions if sessions is not None else [],
             comment=comment,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()

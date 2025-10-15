@@ -30,20 +30,51 @@ class UserService:
     
     def _verify_password(self, password: str, hashed_password: str) -> bool:
         """Verificar una contraseña contra su hash"""
+        # Si el hash está vacío, el usuario no tiene contraseña
+        if not hashed_password:
+            return False
         return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
     
-    async def create_user(self, email: str, password: str, name: str,
+    async def create_user(self, email: Optional[str], password: Optional[str], name: str,
                          roles: List[UserRole] = None) -> UserDomain:
         """
         Crear un nuevo usuario usando el dominio.
-        """
-        # Verificar que el email no exista
-        existing_user = await self.get_user_by_email(email)
-        if existing_user:
-            raise ValueError("El email ya está registrado")
         
-        # Hashear la contraseña
-        hashed_password = self._hash_password(password)
+        Reglas de negocio:
+        - Usuarios tipo USER: email y password opcionales, is_active = False por defecto
+        - Usuarios Dealer/Manager/Admin: email y password obligatorios, is_active = True por defecto
+        """
+        if roles is None:
+            roles = [UserRole.USER]
+        
+        # Validar reglas de negocio según el rol
+        privileged_roles = [UserRole.DEALER, UserRole.MANAGER, UserRole.ADMIN]
+        is_privileged = any(role in privileged_roles for role in roles)
+        
+        if is_privileged:
+            # Dealers, Managers y Admins DEBEN tener email y password
+            if not email:
+                raise ValueError("Los usuarios con rol Dealer, Manager o Admin deben tener email")
+            if not password:
+                raise ValueError("Los usuarios con rol Dealer, Manager o Admin deben tener contraseña")
+        
+        # Verificar que el email no exista si se proporcionó
+        if email:
+            existing_user = await self.get_user_by_email(email)
+            if existing_user:
+                raise ValueError("El email ya está registrado")
+        
+        # Hashear la contraseña (si se proporcionó)
+        if password:
+            hashed_password = self._hash_password(password)
+        else:
+            # Para usuarios sin contraseña, usar un hash vacío o un valor por defecto
+            hashed_password = ""
+        
+        # Determinar el estado inicial según el rol
+        # Usuarios tipo USER: is_active = False (deben ser activados por un admin)
+        # Dealers/Managers/Admins: is_active = True (pueden iniciar sesión inmediatamente)
+        is_active = is_privileged
         
         # Usar el servicio de dominio para crear el usuario
         user = self.domain_service.create_user(
@@ -52,6 +83,9 @@ class UserService:
             name=name,
             roles=roles
         )
+        
+        # Establecer el estado activo según el rol
+        user.is_active = is_active
         
         # Convertir a diccionario para MongoDB
         user_dict = user.dict(exclude={"id"})
@@ -209,10 +243,15 @@ class UserService:
     async def authenticate_user(self, email: str, password: str) -> Optional[UserDomain]:
         """
         Autenticar un usuario con email y contraseña.
+        Solo usuarios con email pueden iniciar sesión.
         """
         user = await self.get_user_by_email(email)
         
         if not user:
+            return None
+        
+        # Verificar que el usuario pueda iniciar sesión (debe tener email)
+        if not user.can_login():
             return None
         
         if not user.is_active:

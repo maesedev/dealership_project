@@ -22,13 +22,17 @@ class UserSecuritySchema(BaseModel):
 
 class UserCreateSchema(BaseModel):
     """Schema para crear un usuario"""
-    email: EmailStr
-    password: str
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
     name: str
     roles: List[UserRole] = [UserRole.USER]
     
     @field_validator('password')
     def validate_password(cls, v):
+        # Si no hay contraseña, es válido (se validará en la lógica de negocio)
+        if v is None:
+            return v
+        
         if len(v) < 8:
             raise ValueError('La contraseña debe tener al menos 8 caracteres')
         if not any(c.isupper() for c in v):
@@ -46,6 +50,20 @@ class UserCreateSchema(BaseModel):
         if len(v.strip()) > 100:
             raise ValueError('El nombre no puede exceder 100 caracteres')
         return v.strip()
+    
+    def validate_business_rules(self):
+        """Validar reglas de negocio específicas según el rol"""
+        errors = []
+        
+        # Si es DEALER, MANAGER o ADMIN, email y password son obligatorios
+        privileged_roles = [UserRole.DEALER, UserRole.MANAGER, UserRole.ADMIN]
+        if any(role in privileged_roles for role in self.roles):
+            if not self.email:
+                errors.append('Los usuarios con rol Dealer, Manager o Admin deben tener email')
+            if not self.password:
+                errors.append('Los usuarios con rol Dealer, Manager o Admin deben tener contraseña')
+        
+        return errors
 
 
 class UserUpdateSchema(BaseModel):
@@ -68,7 +86,7 @@ class UserUpdateSchema(BaseModel):
 class UserResponseSchema(BaseModel):
     """Schema para respuesta de usuario (sin información sensible)"""
     id: str
-    email: str
+    email: Optional[str] = None
     name: str
     roles: List[UserRole]
     is_active: bool

@@ -22,7 +22,8 @@ class SessionService:
         self.domain_service = SessionDomainService()
     
     async def create_session(self, dealer_id: str, start_time: datetime = None,
-                            hourly_pay: int = 0, comment: str = None) -> SessionDomain:
+                            end_time: datetime = None, jackpot: int = 0, reik: int = 0,
+                            tips: int = 0, hourly_pay: int = 0, comment: str = None) -> SessionDomain:
         """
         Crear una nueva sesión usando el dominio.
         """
@@ -33,6 +34,13 @@ class SessionService:
             hourly_pay=hourly_pay,
             comment=comment
         )
+        
+        # Establecer valores adicionales
+        if end_time:
+            session.end_time = end_time
+        session.jackpot = jackpot
+        session.reik = reik
+        session.tips = tips
         
         # Convertir a diccionario para MongoDB
         session_dict = session.dict(exclude={"id"})
@@ -89,11 +97,28 @@ class SessionService:
         
         return sessions
     
-    async def get_active_sessions(self) -> List[SessionDomain]:
+    async def get_active_sessions(self, skip: int = 0, limit: int = 100) -> List[SessionDomain]:
         """
         Obtener sesiones activas (sin end_time).
         """
-        cursor = self.collection.find({"end_time": None}).sort("start_time", -1)
+        cursor = self.collection.find({"end_time": None}).skip(skip).limit(limit).sort("start_time", -1)
+        sessions = []
+        
+        async for session_data in cursor:
+            session_data["id"] = str(session_data["_id"])
+            del session_data["_id"]
+            sessions.append(SessionDomain(**session_data))
+        
+        return sessions
+    
+    async def get_sessions_by_date_range(self, start_date: datetime, end_date: datetime,
+                                        skip: int = 0, limit: int = 100) -> List[SessionDomain]:
+        """
+        Obtener sesiones en un rango de fechas.
+        """
+        cursor = self.collection.find({
+            "start_time": {"$gte": start_date, "$lte": end_date}
+        }).skip(skip).limit(limit).sort("start_time", -1)
         sessions = []
         
         async for session_data in cursor:

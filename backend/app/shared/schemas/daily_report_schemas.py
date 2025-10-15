@@ -15,6 +15,7 @@ class DailyReportCreateSchema(BaseModel):
     jackpot: int = 0
     ganancias: int = 0
     gastos: int = 0
+    sessions: Optional[List[str]] = []
     comment: Optional[str] = None
     
     @field_validator('date')
@@ -36,6 +37,7 @@ class DailyReportUpdateSchema(BaseModel):
     jackpot: Optional[int] = None
     ganancias: Optional[int] = None
     gastos: Optional[int] = None
+    sessions: Optional[List[str]] = None
     comment: Optional[str] = None
     
     @field_validator('reik', 'jackpot', 'ganancias', 'gastos')
@@ -53,6 +55,7 @@ class DailyReportResponseSchema(BaseModel):
     jackpot: int
     ganancias: int
     gastos: int
+    sessions: Optional[List[str]] = []
     comment: Optional[str] = None
     created_at: datetime
     updated_at: datetime

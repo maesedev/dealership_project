@@ -1,1 +1,1 @@
-# Aplicación principal del concesionario
+# Aplicación principal

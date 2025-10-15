@@ -109,7 +109,14 @@ class SessionDomainService:
     def end_session(session: SessionDomain, end_time: datetime = None) -> SessionDomain:
         """
         Finalizar una sesión.
+        
+        Validación:
+        - No permite terminar una sesión que ya fue terminada
         """
+        # Validar que la sesión no haya sido terminada previamente
+        if session.end_time is not None:
+            raise ValueError("Esta sesión ya fue terminada anteriormente")
+        
         if end_time is None:
             end_time = datetime.utcnow()
         
@@ -270,7 +277,14 @@ class SessionDomainService:
     def end_session(session: SessionDomain, end_time: datetime = None) -> SessionDomain:
         """
         Finalizar una sesión.
+        
+        Validación:
+        - No permite terminar una sesión que ya fue terminada
         """
+        # Validar que la sesión no haya sido terminada previamente
+        if session.end_time is not None:
+            raise ValueError("Esta sesión ya fue terminada anteriormente")
+        
         if end_time is None:
             end_time = datetime.utcnow()
         

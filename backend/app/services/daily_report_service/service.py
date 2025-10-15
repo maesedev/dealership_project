@@ -23,7 +23,8 @@ class DailyReportService:
     
     async def create_daily_report(self, report_date: date, reik: int = 0, 
                                  jackpot: int = 0, ganancias: int = 0,
-                                 gastos: int = 0, comment: str = None) -> DailyReportDomain:
+                                 gastos: int = 0, sessions: List[str] = None, 
+                                 comment: str = None) -> DailyReportDomain:
         """
         Crear un nuevo reporte diario usando el dominio.
         """
@@ -39,6 +40,7 @@ class DailyReportService:
             jackpot=jackpot,
             ganancias=ganancias,
             gastos=gastos,
+            sessions=sessions,
             comment=comment
         )
         

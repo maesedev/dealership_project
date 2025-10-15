@@ -173,6 +173,7 @@ db.transactions.createIndex({ "operation_type": 1, "transaction_media": 1 })
   "jackpot": 150000,
   "ganancias": 200000,
   "gastos": 80000,
+  "sessions": ["ses_507f1f77bcf86cd799439012", "ses_507f1f77bcf86cd799439013",...],
   "comment": "Día con alta actividad"
 }
 ```
@@ -186,12 +187,14 @@ db.transactions.createIndex({ "operation_type": 1, "transaction_media": 1 })
 | **jackpot** | Integer | Monto total del jackpot | Requerido, >= 0 |
 | **ganancias** | Integer | Ganancias totales del día | Requerido, >= 0 |
 | **gastos** | Integer | Gastos totales del día | Requerido, >= 0 |
+| **sessions** | Array[String] | Lista de IDs de sesiones del día (FK → SESSION) | Opcional, array de session_id |
 | **comment** | String | Comentario adicional sobre el día | Opcional |
 
 ### Validaciones
 - `date` debe ser única (un reporte por día)
 - Todos los valores monetarios deben ser >= 0
 - `ganancias` - `gastos` = beneficio neto (calculado)
+- Cada `session_id` en `sessions` debe existir en la colección SESSION
 
 ### Índices Recomendados
 ```javascript
@@ -203,6 +206,9 @@ db.daily_reports.createIndex({ "date": 1 }, { unique: true })
 
 // Índice descendente para obtener reportes recientes
 db.daily_reports.createIndex({ "date": -1 })
+
+// Índice en sessions para búsquedas por sesión
+db.daily_reports.createIndex({ "sessions": 1 })
 ```
 
 ---
@@ -311,7 +317,7 @@ SESSION (1) ──┬─> (N) TRANSACTION (session_id)
               ├─> (N) BONO (session_id)
               └─> (N) JACKPOT_PRICE (session_id)
 
-DAILY_REPORT (independiente, agregación diaria)
+DAILY_REPORT (1) ──> (N) SESSION (sessions[])
 ```
 
 ### Descripción de Relaciones
@@ -322,7 +328,7 @@ DAILY_REPORT (independiente, agregación diaria)
 - Una **SESSION** puede tener múltiples **TRANSACTION**
 - Una **SESSION** puede tener múltiples **BONO**
 - Una **SESSION** puede tener múltiples **JACKPOT_PRICE**
-- **DAILY_REPORT** es independiente y agrega información del día
+- Un **DAILY_REPORT** puede contener múltiples **SESSION** (a través de sessions[])
 
 ---
 
@@ -385,6 +391,39 @@ db.jackpot_prices.aggregate([
   },
   { $sort: { "value": -1 } },
   { $limit: 10 }
+])
+```
+
+### Obtener todas las sesiones de un día específico
+```javascript
+db.daily_reports.findOne({ "date": ISODate("2025-10-13T00:00:00Z") })
+```
+
+### Buscar reportes que contengan una sesión específica
+```javascript
+db.daily_reports.find({ "sessions": "ses_507f1f77bcf86cd799439012" })
+```
+
+### Agregar una sesión a un reporte diario
+```javascript
+db.daily_reports.updateOne(
+  { "daily_report_id": "**rpt_507f1f77bcf86cd799439014**" },
+  { $push: { "sessions": "ses_507f1f77bcf86cd799439015" } }
+)
+```
+
+### Obtener reporte con detalles de todas sus sesiones
+```javascript
+db.daily_reports.aggregate([
+  { $match: { "date": ISODate("2025-10-13T00:00:00Z") } },
+  {
+    $lookup: {
+      from: "sessions",
+      localField: "sessions",
+      foreignField: "session_id",
+      as: "session_details"
+    }
+  }
 ])
 ```
 

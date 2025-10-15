@@ -117,4 +117,43 @@ class RoleChecker:
 require_admin = RoleChecker([UserRole.ADMIN])
 require_dealer = RoleChecker([UserRole.DEALER, UserRole.ADMIN])
 require_manager = RoleChecker([UserRole.MANAGER, UserRole.ADMIN])
+require_dealer_or_manager = RoleChecker([UserRole.DEALER, UserRole.MANAGER, UserRole.ADMIN])
+require_manager_or_admin = RoleChecker([UserRole.MANAGER, UserRole.ADMIN])
+
+
+async def get_current_admin(
+    current_user: UserDomain = Depends(get_current_active_user)
+) -> UserDomain:
+    """Dependencia para verificar que el usuario sea Admin"""
+    if UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol de administrador"
+        )
+    return current_user
+
+
+async def get_current_dealer_or_higher(
+    current_user: UserDomain = Depends(get_current_active_user)
+) -> UserDomain:
+    """Dependencia para verificar que el usuario sea Dealer, Manager o Admin"""
+    allowed_roles = [UserRole.DEALER, UserRole.MANAGER, UserRole.ADMIN]
+    if not any(role in current_user.roles for role in allowed_roles):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol de Dealer, Manager o Admin"
+        )
+    return current_user
+
+
+async def get_current_manager_or_admin(
+    current_user: UserDomain = Depends(get_current_active_user)
+) -> UserDomain:
+    """Dependencia para verificar que el usuario sea Manager o Admin"""
+    if not (UserRole.MANAGER in current_user.roles or UserRole.ADMIN in current_user.roles):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol de Manager o Admin"
+        )
+    return current_user
 

@@ -32,10 +32,14 @@ class UserDomain(BaseModel):
     """
     Entidad de dominio User.
     Representa las reglas de negocio puras para un usuario.
+    
+    Reglas:
+    - Usuarios tipo USER: email y password opcionales, is_active = False por defecto
+    - Usuarios Dealer/Manager/Admin: email y password obligatorios, is_active = True por defecto
     """
     id: Optional[str] = None
-    email: EmailStr
-    hashed_password: str
+    email: Optional[str] = None
+    hashed_password: str = ""  # Vacío para usuarios sin contraseña
     roles: List[UserRole] = [UserRole.USER]
     is_active: bool = True
     created_at: Optional[datetime] = None
@@ -45,7 +49,11 @@ class UserDomain(BaseModel):
     
     def get_display_name(self) -> str:
         """Obtener nombre para mostrar"""
-        return self.name or self.email.split('@')[0]
+        if self.name:
+            return self.name
+        if self.email:
+            return self.email.split('@')[0]
+        return "Usuario sin nombre"
     
     def has_role(self, role: UserRole) -> bool:
         """Verificar si el usuario tiene un rol específico"""
@@ -71,6 +79,10 @@ class UserDomain(BaseModel):
         """Verificar si la cuenta está bloqueada por intentos fallidos"""
         return self.security.failed_attempts >= 5
     
+    def can_login(self) -> bool:
+        """Verificar si el usuario puede iniciar sesión (debe tener email)"""
+        return self.email is not None and len(self.email) > 0
+    
     def validate_business_rules(self) -> List[str]:
         """
         Validar reglas de negocio del usuario.
@@ -78,8 +90,8 @@ class UserDomain(BaseModel):
         """
         errors = []
         
-        # Validar email
-        if not self.email or not self._is_valid_email_format(self.email):
+        # Validar email (opcional, pero si existe debe ser válido)
+        if self.email and not self._is_valid_email_format(self.email):
             errors.append("El email no tiene un formato válido")
         
         # Validar nombre
@@ -89,9 +101,13 @@ class UserDomain(BaseModel):
         if len(self.name.strip()) > 100:
             errors.append("El nombre no puede exceder 100 caracteres")
         
-        # Validar password hash
-        if not self.hashed_password or len(self.hashed_password) < 20:
-            errors.append("El hash de la contraseña no es válido")
+        # Validar password hash (solo si no está vacío)
+        # Usuarios tipo USER pueden no tener contraseña
+        privileged_roles = [UserRole.DEALER, UserRole.MANAGER, UserRole.ADMIN]
+        is_privileged = any(role in privileged_roles for role in self.roles)
+        
+        if is_privileged and (not self.hashed_password or len(self.hashed_password) < 20):
+            errors.append("Los usuarios Dealer/Manager/Admin deben tener una contraseña válida")
         
         # Validar roles
         if not self.roles:
@@ -119,10 +135,14 @@ class UserDomainService:
     """
     
     @staticmethod
-    def create_user(email: str, hashed_password: str, name: str,
+    def create_user(email: Optional[str], hashed_password: str = "", name: str = "",
                    roles: List[UserRole] = None) -> UserDomain:
         """
         Crear un nuevo usuario con validación de reglas de negocio.
+        
+        Reglas:
+        - Usuarios tipo USER: email y password opcionales, is_active = False por defecto
+        - Usuarios Dealer/Manager/Admin: email y password obligatorios, is_active = True por defecto
         """
         if roles is None:
             roles = [UserRole.USER]
