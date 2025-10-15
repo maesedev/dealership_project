@@ -5,8 +5,9 @@ Se encarga de la comunicación con la base de datos y orquestación de operacion
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import bcrypt
+from bson import ObjectId
 from app.domains.user.domain import UserDomain, UserDomainService, UserRole
 from app.infrastructure.database.connection import get_database
 
@@ -104,13 +105,25 @@ class UserService:
         """
         Obtener un usuario por ID.
         """
-        user_data = await self.collection.find_one({"_id": user_id})
+        print(f"🔍 [DEBUG - UserService] Buscando usuario con ID string: {user_id}")
+        
+        try:
+            # Convertir el string a ObjectId para MongoDB
+            object_id = ObjectId(user_id)
+            print(f"✅ [DEBUG - UserService] ObjectId convertido: {object_id}")
+        except Exception as e:
+            print(f"❌ [DEBUG - UserService] Error al convertir ID a ObjectId: {e}")
+            return None
+        
+        user_data = await self.collection.find_one({"_id": object_id})
         
         if user_data:
+            print(f"✅ [DEBUG - UserService] Usuario encontrado en BD: {user_data.get('username', 'N/A')}")
             user_data["id"] = str(user_data["_id"])
             del user_data["_id"]
             return UserDomain(**user_data)
         
+        print(f"❌ [DEBUG - UserService] Usuario no encontrado en BD con ObjectId: {object_id}")
         return None
     
     async def get_user_by_username(self, username: str) -> Optional[UserDomain]:
@@ -172,7 +185,7 @@ class UserService:
         
         # Actualizar en la base de datos
         await self.collection.update_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"$set": update_data}
         )
         
@@ -181,17 +194,31 @@ class UserService:
     async def update_user_roles(self, user_id: str, roles: List[UserRole]) -> Optional[UserDomain]:
         """
         Actualizar roles de un usuario.
+        Valida que usuarios con roles privilegiados tengan username y contraseña.
         """
         existing_user = await self.get_user_by_id(user_id)
         
         if not existing_user:
             return None
         
+        # Validar que si se asignan roles privilegiados, el usuario tenga contraseña
+        privileged_roles = [UserRole.DEALER, UserRole.MANAGER, UserRole.ADMIN]
+        is_privileged = any(role in privileged_roles for role in roles)
+        
+        if is_privileged:
+            # Verificar que tenga username
+            if not existing_user.username:
+                raise ValueError("No se puede asignar el rol Dealer, Manager o Admin a un usuario sin username")
+            
+            # Verificar que tenga contraseña (hashed_password no vacío)
+            if not existing_user.hashed_password or len(existing_user.hashed_password) < 20:
+                raise ValueError("No se puede asignar el rol Dealer, Manager o Admin a un usuario sin contraseña. El usuario debe configurar una contraseña primero")
+        
         existing_user.roles = roles
-        existing_user.updated_at = datetime.utcnow()
+        existing_user.updated_at = datetime.now(timezone.utc)
         
         await self.collection.update_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"$set": {"roles": [role.value for role in roles], "updated_at": existing_user.updated_at}}
         )
         
@@ -209,7 +236,7 @@ class UserService:
         activated_user = self.domain_service.activate_user(existing_user)
         
         await self.collection.update_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"$set": {
                 "is_active": True,
                 "security.failed_attempts": 0,
@@ -231,7 +258,7 @@ class UserService:
         deactivated_user = self.domain_service.deactivate_user(existing_user)
         
         await self.collection.update_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"$set": {
                 "is_active": False,
                 "updated_at": deactivated_user.updated_at
@@ -264,7 +291,7 @@ class UserService:
             # Registrar intento fallido
             user = self.domain_service.record_failed_attempt(user)
             await self.collection.update_one(
-                {"_id": user.id},
+                {"_id": ObjectId(user.id)},
                 {"$set": {
                     "security.failed_attempts": user.security.failed_attempts,
                     "is_active": user.is_active,
@@ -277,7 +304,7 @@ class UserService:
         if user.security.failed_attempts > 0:
             user = self.domain_service.reset_failed_attempts(user)
             await self.collection.update_one(
-                {"_id": user.id},
+                {"_id": ObjectId(user.id)},
                 {"$set": {
                     "security.failed_attempts": 0,
                     "updated_at": user.updated_at
@@ -301,10 +328,10 @@ class UserService:
         new_hashed_password = self._hash_password(new_password)
         
         await self.collection.update_one(
-            {"_id": user_id},
+            {"_id": ObjectId(user_id)},
             {"$set": {
                 "hashed_password": new_hashed_password,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }}
         )
         
@@ -314,7 +341,7 @@ class UserService:
         """
         Eliminar un usuario.
         """
-        result = await self.collection.delete_one({"_id": user_id})
+        result = await self.collection.delete_one({"_id": ObjectId(user_id)})
         return result.deleted_count > 0
     
     async def search_users(self, search_term: str) -> List[UserDomain]:

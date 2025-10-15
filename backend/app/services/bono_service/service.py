@@ -5,7 +5,8 @@ Se encarga de la comunicación con la base de datos y orquestación de operacion
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+from bson import ObjectId
 from app.domains.bono.domain import BonoDomain, BonoDomainService
 from app.infrastructure.database.connection import get_database
 
@@ -51,7 +52,7 @@ class BonoService:
         """
         Obtener un bono por ID.
         """
-        bono_data = await self.collection.find_one({"_id": bono_id})
+        bono_data = await self.collection.find_one({"_id": ObjectId(bono_id)})
         
         if bono_data:
             bono_data["id"] = str(bono_data["_id"])
@@ -155,7 +156,7 @@ class BonoService:
             if value is not None and hasattr(existing_bono, key):
                 setattr(existing_bono, key, value)
         
-        existing_bono.updated_at = datetime.utcnow()
+        existing_bono.updated_at = datetime.now(timezone.utc)
         
         # Validar reglas de negocio
         errors = existing_bono.validate_business_rules()
@@ -167,7 +168,7 @@ class BonoService:
         
         # Actualizar en la base de datos
         await self.collection.update_one(
-            {"_id": bono_id},
+            {"_id": ObjectId(bono_id)},
             {"$set": update_data}
         )
         
@@ -177,7 +178,7 @@ class BonoService:
         """
         Eliminar un bono.
         """
-        result = await self.collection.delete_one({"_id": bono_id})
+        result = await self.collection.delete_one({"_id": ObjectId(bono_id)})
         return result.deleted_count > 0
     
     async def get_bono_stats(self) -> dict:

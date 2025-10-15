@@ -69,7 +69,7 @@ async def generate_daily_report_from_sessions(
                 duration_hours = (session.end_time - session.start_time).total_seconds() / 3600
             else:
                 # Si no tiene end_time, asumir que sigue activa hasta ahora
-                duration_hours = (datetime.utcnow() - session.start_time).total_seconds() / 3600
+                duration_hours = (datetime.now(timezone.utc) - session.start_time).total_seconds() / 3600
             
             dealer_cost = duration_hours * session.hourly_pay
             total_gastos += int(dealer_cost)

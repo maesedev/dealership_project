@@ -5,7 +5,8 @@ Se encarga de la comunicación con la base de datos y orquestación de operacion
 """
 
 from typing import List, Optional
-from datetime import datetime, date
+from datetime import datetime, date, timezone
+from bson import ObjectId
 from app.domains.daily_report.domain import DailyReportDomain, DailyReportDomainService
 from app.infrastructure.database.connection import get_database
 
@@ -61,7 +62,7 @@ class DailyReportService:
         """
         Obtener un reporte por ID.
         """
-        report_data = await self.collection.find_one({"_id": report_id})
+        report_data = await self.collection.find_one({"_id": ObjectId(report_id)})
         
         if report_data:
             report_data["id"] = str(report_data["_id"])
@@ -145,7 +146,7 @@ class DailyReportService:
             if value is not None and hasattr(existing_report, key):
                 setattr(existing_report, key, value)
         
-        existing_report.updated_at = datetime.utcnow()
+        existing_report.updated_at = datetime.now(timezone.utc)
         
         # Validar reglas de negocio
         errors = existing_report.validate_business_rules()
@@ -157,7 +158,7 @@ class DailyReportService:
         
         # Actualizar en la base de datos
         await self.collection.update_one(
-            {"_id": report_id},
+            {"_id": ObjectId(report_id)},
             {"$set": update_data}
         )
         
@@ -175,7 +176,7 @@ class DailyReportService:
         updated_report = self.domain_service.add_income(existing_report, amount, income_type)
         
         await self.collection.update_one(
-            {"_id": report_id},
+            {"_id": ObjectId(report_id)},
             {"$set": {
                 "reik": updated_report.reik,
                 "jackpot": updated_report.jackpot,
@@ -198,7 +199,7 @@ class DailyReportService:
         updated_report = self.domain_service.add_expense(existing_report, amount)
         
         await self.collection.update_one(
-            {"_id": report_id},
+            {"_id": ObjectId(report_id)},
             {"$set": {
                 "gastos": updated_report.gastos,
                 "updated_at": updated_report.updated_at
@@ -211,7 +212,7 @@ class DailyReportService:
         """
         Eliminar un reporte.
         """
-        result = await self.collection.delete_one({"_id": report_id})
+        result = await self.collection.delete_one({"_id": ObjectId(report_id)})
         return result.deleted_count > 0
     
     async def get_report_stats(self, date_from: date = None, date_to: date = None) -> dict:

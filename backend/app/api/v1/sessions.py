@@ -3,7 +3,7 @@ Endpoints para la gestión de sesiones.
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, status
 from app.services.session_service.service import SessionService
 from app.services.user_service.service import UserService
@@ -61,10 +61,6 @@ async def create_session(
         session = await session_service.create_session(
             dealer_id=session_data.dealer_id,
             start_time=session_data.start_time,
-            end_time=session_data.end_time,
-            jackpot=session_data.jackpot,
-            reik=session_data.reik,
-            tips=session_data.tips,
             hourly_pay=session_data.hourly_pay,
             comment=session_data.comment
         )
@@ -247,7 +243,7 @@ async def end_session(
             )
         
         if end_time is None:
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
         
         session = await session_service.end_session(session_id, end_time)
         if not session:

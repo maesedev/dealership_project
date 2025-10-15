@@ -98,8 +98,8 @@ class DailyReportDomainService:
             gastos=gastos,
             sessions=sessions if sessions is not None else [],
             comment=comment,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         
         # Validar reglas de negocio
@@ -126,7 +126,7 @@ class DailyReportDomainService:
         else:
             raise ValueError("Tipo de ingreso inválido. Debe ser 'reik', 'jackpot' o 'ganancias'")
         
-        report.updated_at = datetime.utcnow()
+        report.updated_at = datetime.now(timezone.utc)
         return report
     
     @staticmethod
@@ -138,7 +138,7 @@ class DailyReportDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         report.gastos += amount
-        report.updated_at = datetime.utcnow()
+        report.updated_at = datetime.now(timezone.utc)
         return report
     
     @staticmethod
@@ -167,6 +167,6 @@ class DailyReportDomainService:
                 raise ValueError("Los gastos no pueden ser negativos")
             report.gastos = gastos
         
-        report.updated_at = datetime.utcnow()
+        report.updated_at = datetime.now(timezone.utc)
         return report
 

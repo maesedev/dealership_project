@@ -84,21 +84,37 @@ class AuthService:
             UserDomain si el token es válido
             None si el token es inválido o el usuario no existe
         """
+        print("\n🔍 [DEBUG - AuthService] get_current_user() iniciado")
+        
         payload = await self.verify_token(token)
         
         if not payload:
+            print("❌ [DEBUG - AuthService] Token inválido o expirado (payload es None)")
             return None
+        
+        print(f"✅ [DEBUG - AuthService] Payload obtenido: {payload}")
         
         user_id = payload.get("sub")
         if not user_id:
+            print("❌ [DEBUG - AuthService] No se encontró 'sub' en el payload")
             return None
         
+        print(f"🔍 [DEBUG - AuthService] Buscando usuario con ID: {user_id}")
         user = await self.user_service.get_user_by_id(user_id)
         
-        # Verificar que el usuario aún esté activo
-        if not user or not user.is_active:
+        if not user:
+            print(f"❌ [DEBUG - AuthService] Usuario con ID {user_id} no encontrado en BD")
             return None
         
+        print(f"✅ [DEBUG - AuthService] Usuario encontrado: {user.username}")
+        
+        # Verificar que el usuario aún esté activo
+        if not user.is_active:
+            print(f"❌ [DEBUG - AuthService] Usuario {user.username} está INACTIVO")
+            return None
+        
+        print(f"✅ [DEBUG - AuthService] Usuario {user.username} está ACTIVO")
+        print("✅ [DEBUG - AuthService] get_current_user() completado exitosamente\n")
         return user
     
     async def refresh_token(self, old_token: str) -> Optional[dict]:

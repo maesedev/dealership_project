@@ -315,6 +315,7 @@ python examples/test_auth.py
 #### `PUT /api/v1/users/{user_id}/roles`
 **Descripción**: Actualizar roles de usuario  
 **Permisos**: Admin  
+**Validaciones**: Si se asignan roles privilegiados (DEALER, MANAGER o ADMIN), el usuario debe tener username y contraseña configurados  
 **Request Body**:
 ```json
 {
@@ -683,3 +684,4 @@ Una vez que una sesión tiene `end_time` (está cerrada):
 - Las sesiones deben estar activas para crear nuevos registros
 - Los usuarios tipo USER pueden tener username/password opcionales
 - Dealers, Managers y Admins requieren username y password obligatorios
+- **Actualización de roles**: No se puede promover un usuario a rol privilegiado (DEALER, MANAGER, ADMIN) si no tiene username y contraseña configurados

@@ -3,7 +3,7 @@ Dominio Session - Lógica de negocio pura para sesiones de dealer.
 """
 
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
 
 
@@ -87,15 +87,15 @@ class SessionDomainService:
         Crear una nueva sesión con validación de reglas de negocio.
         """
         if start_time is None:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
         
         session = SessionDomain(
             dealer_id=dealer_id,
             start_time=start_time,
             hourly_pay=hourly_pay,
             comment=comment,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         
         # Validar reglas de negocio
@@ -118,13 +118,13 @@ class SessionDomainService:
             raise ValueError("Esta sesión ya fue terminada anteriormente")
         
         if end_time is None:
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
         
         if end_time < session.start_time:
             raise ValueError("El tiempo de fin no puede ser anterior al tiempo de inicio")
         
         session.end_time = end_time
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         
         return session
     
@@ -137,7 +137,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.jackpot += amount
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         
         return session
     
@@ -150,7 +150,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.reik += amount
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         
         return session
     
@@ -163,7 +163,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.tips += amount
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         
         return session
 """
@@ -171,7 +171,7 @@ Dominio Session - Lógica de negocio pura para sesiones de dealer.
 """
 
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
 
 
@@ -255,15 +255,15 @@ class SessionDomainService:
         Crear una nueva sesión con validación de reglas de negocio.
         """
         if start_time is None:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
         
         session = SessionDomain(
             dealer_id=dealer_id,
             start_time=start_time,
             hourly_pay=hourly_pay,
             comment=comment,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         
         # Validar reglas de negocio
@@ -286,13 +286,13 @@ class SessionDomainService:
             raise ValueError("Esta sesión ya fue terminada anteriormente")
         
         if end_time is None:
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
         
         if end_time < session.start_time:
             raise ValueError("El tiempo de fin no puede ser anterior al tiempo de inicio")
         
         session.end_time = end_time
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         
         return session
     
@@ -305,7 +305,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.jackpot += amount
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         
         return session
     
@@ -318,7 +318,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.reik += amount
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         
         return session
     
@@ -331,6 +331,6 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.tips += amount
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         
         return session

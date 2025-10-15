@@ -3,7 +3,7 @@ Dominio JackpotPrice - Lógica de negocio pura para premios de jackpot.
 """
 
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
 
 
@@ -76,8 +76,8 @@ class JackpotPriceDomainService:
             value=value,
             winner_hand=winner_hand,
             comment=comment,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         
         # Validar reglas de negocio
@@ -96,7 +96,7 @@ class JackpotPriceDomainService:
             raise ValueError("El valor del jackpot debe ser mayor a 0")
         
         jackpot_price.value = new_value
-        jackpot_price.updated_at = datetime.utcnow()
+        jackpot_price.updated_at = datetime.now(timezone.utc)
         
         return jackpot_price
     
@@ -109,7 +109,7 @@ class JackpotPriceDomainService:
             raise ValueError("La mano ganadora no puede estar vacía")
         
         jackpot_price.winner_hand = winner_hand.strip()
-        jackpot_price.updated_at = datetime.utcnow()
+        jackpot_price.updated_at = datetime.now(timezone.utc)
         
         return jackpot_price
     

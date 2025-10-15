@@ -3,7 +3,7 @@ Dominio Transaction - Lógica de negocio pura para transacciones.
 """
 
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
 from enum import Enum
 
@@ -112,8 +112,8 @@ class TransactionDomainService:
             operation_type=operation_type,
             transaction_media=transaction_media,
             comment=comment,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         
         # Validar reglas de negocio

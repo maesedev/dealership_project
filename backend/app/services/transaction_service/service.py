@@ -5,7 +5,8 @@ Se encarga de la comunicación con la base de datos y orquestación de operacion
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+from bson import ObjectId
 from app.domains.transaction.domain import (
     TransactionDomain, 
     TransactionDomainService,
@@ -89,7 +90,7 @@ class TransactionService:
         """
         Obtener una transacción por ID.
         """
-        transaction_data = await self.collection.find_one({"_id": transaction_id})
+        transaction_data = await self.collection.find_one({"_id": ObjectId(transaction_id)})
         
         if transaction_data:
             transaction_data["id"] = str(transaction_data["_id"])
@@ -222,7 +223,7 @@ class TransactionService:
             if value is not None and hasattr(existing_transaction, key):
                 setattr(existing_transaction, key, value)
         
-        existing_transaction.updated_at = datetime.utcnow()
+        existing_transaction.updated_at = datetime.now(timezone.utc)
         
         # Validar reglas de negocio
         errors = existing_transaction.validate_business_rules()
@@ -234,7 +235,7 @@ class TransactionService:
         
         # Actualizar en la base de datos
         await self.collection.update_one(
-            {"_id": transaction_id},
+            {"_id": ObjectId(transaction_id)},
             {"$set": update_data}
         )
         
@@ -244,7 +245,7 @@ class TransactionService:
         """
         Eliminar una transacción.
         """
-        result = await self.collection.delete_one({"_id": transaction_id})
+        result = await self.collection.delete_one({"_id": ObjectId(transaction_id)})
         return result.deleted_count > 0
     
     async def get_transaction_stats(self) -> dict:

@@ -5,7 +5,8 @@ Se encarga de la comunicación con la base de datos y orquestación de operacion
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+from bson import ObjectId
 from app.domains.session.domain import SessionDomain, SessionDomainService
 from app.infrastructure.database.connection import get_database
 
@@ -59,7 +60,7 @@ class SessionService:
         """
         Obtener una sesión por ID.
         """
-        session_data = await self.collection.find_one({"_id": session_id})
+        session_data = await self.collection.find_one({"_id": ObjectId(session_id)})
         
         if session_data:
             session_data["id"] = str(session_data["_id"])
@@ -159,7 +160,7 @@ class SessionService:
             if value is not None and hasattr(existing_session, key):
                 setattr(existing_session, key, value)
         
-        existing_session.updated_at = datetime.utcnow()
+        existing_session.updated_at = datetime.now(timezone.utc)
         
         # Validar reglas de negocio
         errors = existing_session.validate_business_rules()
@@ -171,7 +172,7 @@ class SessionService:
         
         # Actualizar en la base de datos
         await self.collection.update_one(
-            {"_id": session_id},
+            {"_id": ObjectId(session_id)},
             {"$set": update_data}
         )
         
@@ -190,7 +191,7 @@ class SessionService:
         ended_session = self.domain_service.end_session(existing_session, end_time)
         
         await self.collection.update_one(
-            {"_id": session_id},
+            {"_id": ObjectId(session_id)},
             {"$set": {
                 "end_time": ended_session.end_time,
                 "updated_at": ended_session.updated_at
@@ -211,7 +212,7 @@ class SessionService:
         updated_session = self.domain_service.add_jackpot(existing_session, amount)
         
         await self.collection.update_one(
-            {"_id": session_id},
+            {"_id": ObjectId(session_id)},
             {"$set": {
                 "jackpot": updated_session.jackpot,
                 "updated_at": updated_session.updated_at
@@ -232,7 +233,7 @@ class SessionService:
         updated_session = self.domain_service.add_reik(existing_session, amount)
         
         await self.collection.update_one(
-            {"_id": session_id},
+            {"_id": ObjectId(session_id)},
             {"$set": {
                 "reik": updated_session.reik,
                 "updated_at": updated_session.updated_at
@@ -253,7 +254,7 @@ class SessionService:
         updated_session = self.domain_service.add_tips(existing_session, amount)
         
         await self.collection.update_one(
-            {"_id": session_id},
+            {"_id": ObjectId(session_id)},
             {"$set": {
                 "tips": updated_session.tips,
                 "updated_at": updated_session.updated_at
@@ -266,7 +267,7 @@ class SessionService:
         """
         Eliminar una sesión.
         """
-        result = await self.collection.delete_one({"_id": session_id})
+        result = await self.collection.delete_one({"_id": ObjectId(session_id)})
         return result.deleted_count > 0
     
     async def get_session_stats(self) -> dict:

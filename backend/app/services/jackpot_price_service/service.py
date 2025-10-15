@@ -5,7 +5,8 @@ Se encarga de la comunicación con la base de datos y orquestación de operacion
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+from bson import ObjectId
 from app.domains.jackpot_price.domain import JackpotPriceDomain, JackpotPriceDomainService
 from app.infrastructure.database.connection import get_database
 
@@ -52,7 +53,7 @@ class JackpotPriceService:
         """
         Obtener un premio de jackpot por ID.
         """
-        jackpot_data = await self.collection.find_one({"_id": jackpot_id})
+        jackpot_data = await self.collection.find_one({"_id": ObjectId(jackpot_id)})
         
         if jackpot_data:
             jackpot_data["id"] = str(jackpot_data["_id"])
@@ -174,7 +175,7 @@ class JackpotPriceService:
             if value is not None and hasattr(existing_jackpot, key):
                 setattr(existing_jackpot, key, value)
         
-        existing_jackpot.updated_at = datetime.utcnow()
+        existing_jackpot.updated_at = datetime.now(timezone.utc)
         
         # Validar reglas de negocio
         errors = existing_jackpot.validate_business_rules()
@@ -186,7 +187,7 @@ class JackpotPriceService:
         
         # Actualizar en la base de datos
         await self.collection.update_one(
-            {"_id": jackpot_id},
+            {"_id": ObjectId(jackpot_id)},
             {"$set": update_data}
         )
         
@@ -196,7 +197,7 @@ class JackpotPriceService:
         """
         Eliminar un premio de jackpot.
         """
-        result = await self.collection.delete_one({"_id": jackpot_id})
+        result = await self.collection.delete_one({"_id": ObjectId(jackpot_id)})
         return result.deleted_count > 0
     
     async def get_jackpot_stats(self) -> dict:
