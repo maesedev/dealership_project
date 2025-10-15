@@ -105,25 +105,19 @@ class UserService:
         """
         Obtener un usuario por ID.
         """
-        print(f"🔍 [DEBUG - UserService] Buscando usuario con ID string: {user_id}")
-        
         try:
             # Convertir el string a ObjectId para MongoDB
             object_id = ObjectId(user_id)
-            print(f"✅ [DEBUG - UserService] ObjectId convertido: {object_id}")
-        except Exception as e:
-            print(f"❌ [DEBUG - UserService] Error al convertir ID a ObjectId: {e}")
+        except Exception:
             return None
         
         user_data = await self.collection.find_one({"_id": object_id})
         
         if user_data:
-            print(f"✅ [DEBUG - UserService] Usuario encontrado en BD: {user_data.get('username', 'N/A')}")
             user_data["id"] = str(user_data["_id"])
             del user_data["_id"]
             return UserDomain(**user_data)
         
-        print(f"❌ [DEBUG - UserService] Usuario no encontrado en BD con ObjectId: {object_id}")
         return None
     
     async def get_user_by_username(self, username: str) -> Optional[UserDomain]:
