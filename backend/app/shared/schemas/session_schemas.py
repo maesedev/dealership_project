@@ -5,14 +5,14 @@ Estos schemas se usan para la validación de entrada/salida de la API.
 
 from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class SessionCreateSchema(BaseModel):
     """Schema para crear una sesión"""
     dealer_id: str
-    start_time: Optional[datetime] = None
-    hourly_pay: int = 0
+    start_time: datetime
+    hourly_pay: int
     comment: Optional[str] = None
     
     @field_validator('dealer_id')
@@ -64,9 +64,27 @@ class SessionResponseSchema(BaseModel):
     comment: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    is_active: bool
+    is_active: Optional[bool] = None
     duration_hours: Optional[float] = None
-    total_earnings: int
+    total_earnings: Optional[int] = None
+    
+    @model_validator(mode='after')
+    def compute_calculated_fields(self):
+        """Calcular campos derivados si no están presentes"""
+        # Calcular is_active si no está presente
+        if self.is_active is None:
+            self.is_active = self.end_time is None
+        
+        # Calcular total_earnings si no está presente
+        if self.total_earnings is None:
+            self.total_earnings = self.jackpot + self.reik + self.tips + self.hourly_pay
+        
+        # Calcular duration_hours si end_time está presente
+        if self.end_time is not None and self.duration_hours is None:
+            delta = self.end_time - self.start_time
+            self.duration_hours = delta.total_seconds() / 3600
+        
+        return self
     
     class Config:
         from_attributes = True
