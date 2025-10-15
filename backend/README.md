@@ -735,6 +735,39 @@ print(response.json())
 **Comportamiento**:
 - Si la fecha es HOY (Bogotá): SIEMPRE regenera el reporte (datos en tiempo real)
 - Si es fecha pasada: Devuelve existente o genera si no existe
+- Los reportes se generan automáticamente desde las sesiones del día
+- **NO se pueden crear manualmente**, solo se generan automáticamente
+**Respuesta incluye**:
+```json
+{
+  "id": "string",
+  "date": "date",
+  "reik": "int",
+  "jackpot": "int",
+  "ganancias": "int",
+  "gastos": "int",
+  "sessions": ["array de session_ids"],
+  "jackpot_wins": [
+    {
+      "jackpot_win_id": "string",
+      "sum": "int"
+    }
+  ],
+  "bonos": [
+    {
+      "bono_id": "string",
+      "sum": "int"
+    }
+  ],
+  "comment": "string",
+  "created_at": "datetime",
+  "updated_at": "datetime",
+  "net_profit": "int",
+  "total_income": "int",
+  "is_profitable": "bool",
+  "profit_margin": "float"
+}
+```
 
 #### `GET /api/v1/daily-reports/{report_id}`
 **Descripción**: Obtener reporte por ID  
@@ -756,25 +789,10 @@ print(response.json())
 - `skip`: int (default: 0)
 - `limit`: int (default: 100)
 
-#### `POST /api/v1/daily-reports`
-**Descripción**: Crear reporte manualmente  
-**Permisos**: Manager o Admin  
-**Request Body**:
-```json
-{
-  "date": "date",
-  "reik": "int",
-  "jackpot": "int",
-  "ganancias": "int",
-  "gastos": "int",
-  "sessions": ["array de session_ids"],
-  "comment": "string (opcional)"
-}
-```
-
 #### `PUT /api/v1/daily-reports/{report_id}`
 **Descripción**: Actualizar reporte  
 **Permisos**: Manager o Admin  
+**Nota importante**: `jackpot_wins` y `bonos` **NO** se pueden modificar manualmente. Son inmutables y se generan automáticamente desde las sesiones.  
 **Request Body**:
 ```json
 {

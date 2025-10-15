@@ -21,7 +21,14 @@ class BonoEntrySchema(BaseModel):
 
 
 class DailyReportCreateSchema(BaseModel):
-    """Schema para crear un reporte diario"""
+    """Schema para crear un reporte diario
+    
+    ⚠️ ADVERTENCIA: Este schema NO se debe usar.
+    Los reportes diarios NO se pueden crear manualmente.
+    Se generan automáticamente desde las sesiones del día.
+    
+    Este schema se mantiene por compatibilidad pero NO debe usarse.
+    """
     date: date
     reik: int = 0
     jackpot: int = 0
@@ -46,14 +53,16 @@ class DailyReportCreateSchema(BaseModel):
 
 
 class DailyReportUpdateSchema(BaseModel):
-    """Schema para actualizar un reporte diario"""
+    """Schema para actualizar un reporte diario
+    
+    Nota: jackpot_wins y bonos NO se pueden modificar manualmente,
+    son inmutables y se generan automáticamente desde las sesiones.
+    """
     reik: Optional[int] = None
     jackpot: Optional[int] = None
     ganancias: Optional[int] = None
     gastos: Optional[int] = None
     sessions: Optional[List[str]] = None
-    jackpot_wins: Optional[List[JackpotWinEntrySchema]] = None
-    bonos: Optional[List[BonoEntrySchema]] = None
     comment: Optional[str] = None
     
     @field_validator('reik', 'jackpot', 'ganancias', 'gastos')

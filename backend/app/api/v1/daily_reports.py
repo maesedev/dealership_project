@@ -11,7 +11,6 @@ from app.services.session_service.service import SessionService
 from app.services.jackpot_price_service.service import JackpotPriceService
 from app.services.bono_service.service import BonoService
 from app.shared.schemas.daily_report_schemas import (
-    DailyReportCreateSchema,
     DailyReportUpdateSchema,
     DailyReportResponseSchema,
     DailyReportListResponseSchema,
@@ -337,51 +336,6 @@ async def get_profitable_reports(
     )
 
 
-@router.post("/", response_model=DailyReportResponseSchema, status_code=status.HTTP_201_CREATED)
-async def create_daily_report(
-    report_data: DailyReportCreateSchema,
-    current_user: UserDomain = Depends(get_current_manager_or_admin),
-    daily_report_service: DailyReportService = Depends(get_daily_report_service)
-):
-    """
-    Crear un reporte diario manualmente.
-    Solo Managers y Admins pueden crear reportes.
-    """
-    try:
-        report = await daily_report_service.create_daily_report(
-            report_date=report_data.date,
-            reik=report_data.reik,
-            jackpot=report_data.jackpot,
-            ganancias=report_data.ganancias,
-            gastos=report_data.gastos,
-            sessions=report_data.sessions,
-            jackpot_wins=report_data.jackpot_wins,
-            bonos=report_data.bonos,
-            comment=report_data.comment
-        )
-        
-        return DailyReportResponseSchema(
-            id=report.id,
-            date=report.date,
-            reik=report.reik,
-            jackpot=report.jackpot,
-            ganancias=report.ganancias,
-            gastos=report.gastos,
-            sessions=report.sessions,
-            jackpot_wins=[jw.dict() for jw in report.jackpot_wins] if report.jackpot_wins else [],
-            bonos=[b.dict() for b in report.bonos] if report.bonos else [],
-            comment=report.comment,
-            created_at=report.created_at,
-            updated_at=report.updated_at,
-            net_profit=report.get_net_profit(),
-            total_income=report.get_total_income(),
-            is_profitable=report.is_profitable(),
-            profit_margin=report.get_profit_margin()
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
 @router.put("/{report_id}", response_model=DailyReportResponseSchema)
 async def update_daily_report(
     report_id: str,
@@ -392,9 +346,14 @@ async def update_daily_report(
     """
     Actualizar un reporte diario.
     Solo Managers y Admins pueden actualizar reportes.
+    
+    Nota: jackpot_wins y bonos NO se pueden modificar manualmente.
+    Son inmutables y se generan automáticamente desde las sesiones.
     """
     try:
         # Construir diccionario de actualizaciones
+        # Nota: jackpot_wins y bonos NO se incluyen porque son inmutables
+        # y solo se generan automáticamente
         update_dict = {}
         if report_data.reik is not None:
             update_dict["reik"] = report_data.reik
@@ -406,10 +365,6 @@ async def update_daily_report(
             update_dict["gastos"] = report_data.gastos
         if report_data.sessions is not None:
             update_dict["sessions"] = report_data.sessions
-        if report_data.jackpot_wins is not None:
-            update_dict["jackpot_wins"] = report_data.jackpot_wins
-        if report_data.bonos is not None:
-            update_dict["bonos"] = report_data.bonos
         if report_data.comment is not None:
             update_dict["comment"] = report_data.comment
         

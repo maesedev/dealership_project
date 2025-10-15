@@ -160,6 +160,9 @@ class DailyReportService:
     async def update_report(self, report_id: str, **updates) -> Optional[DailyReportDomain]:
         """
         Actualizar un reporte existente.
+        
+        Nota: jackpot_wins y bonos son inmutables y NO se pueden modificar.
+        Se generan automáticamente desde las sesiones.
         """
         # Obtener el reporte actual
         existing_report = await self.get_report_by_id(report_id)
@@ -167,14 +170,16 @@ class DailyReportService:
         if not existing_report:
             return None
         
+        # Lista de campos inmutables que NO se pueden modificar
+        immutable_fields = ['jackpot_wins', 'bonos']
+        
         # Actualizar campos
         for key, value in updates.items():
+            # Prevenir modificación de campos inmutables
+            if key in immutable_fields:
+                continue
+                
             if value is not None and hasattr(existing_report, key):
-                # Convertir diccionarios a objetos si es necesario
-                if key == 'jackpot_wins' and isinstance(value, list):
-                    value = [JackpotWinEntry(**item) if isinstance(item, dict) else item for item in value]
-                elif key == 'bonos' and isinstance(value, list):
-                    value = [BonoEntry(**item) if isinstance(item, dict) else item for item in value]
                 setattr(existing_report, key, value)
         
         existing_report.updated_at = datetime.now(timezone.utc)
