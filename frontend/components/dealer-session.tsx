@@ -1,9 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/lib/auth-context"
+import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Clock, Calendar, MessageSquare, Plus, Activity } from "lucide-react"
+import { Clock, Calendar, MessageSquare, Plus, Activity, Loader2, AlertCircle, DollarSign, Target } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 // Interfaz basada en el schema del backend
 interface DealerSession {
@@ -24,9 +28,19 @@ interface DealerSession {
 }
 
 export function DealerSession() {
+  const { user } = useAuth()
   // Estado para todas las sesiones (historial completo)
   const [sessions, setSessions] = useState<DealerSession[]>([])
   const [currentDurations, setCurrentDurations] = useState<Map<string, string>>(new Map())
+  const [isLoading, setIsLoading] = useState(true)
+  const [isStarting, setIsStarting] = useState(false)
+  const [isEnding, setIsEnding] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [showEndModal, setShowEndModal] = useState<string | null>(null)
+  const [endFormData, setEndFormData] = useState({
+    reik: '',
+    jackpot: ''
+  })
   
   // Verificar si hay una sesión activa
   const hasActiveSession = sessions.some(session => session.is_active)
@@ -42,6 +56,27 @@ export function DealerSession() {
     
     return `${hours}h ${minutes}m`
   }
+
+  // Cargar sesiones activas del usuario al montar el componente
+  useEffect(() => {
+    const loadActiveSessions = async () => {
+      if (!user?.id) return
+      
+      try {
+        setIsLoading(true)
+        setError('')
+        const response = await api.get(`/api/v1/sessions/active/user/${user.id}`)
+        setSessions(response.sessions || [])
+      } catch (err: any) {
+        console.error('Error al cargar sesiones activas:', err)
+        setError(err.message || 'Error al cargar sesiones activas')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadActiveSessions()
+  }, [user?.id])
 
   // Actualizar duración cada minuto para todas las sesiones activas
   useEffect(() => {
@@ -92,45 +127,108 @@ export function DealerSession() {
   }
 
   // Handler para iniciar turno
-  const handleStartShift = () => {
-    const now = new Date()
-    const newSession: DealerSession = {
-      id: `session-${Date.now()}`, // ID temporal
-      dealer_id: "dealer-current", // TODO: Obtener del usuario logueado
-      start_time: now.toISOString(),
-      end_time: null,
-      jackpot: 0,
-      reik: 0,
-      tips: 0,
-      hourly_pay: 0,
-      comment: null,
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
-      is_active: true,
-      duration_hours: null,
-      total_earnings: 0
+  const handleStartShift = async () => {
+    if (!user?.id) {
+      setError('No se pudo identificar al usuario')
+      return
     }
-    // Agregar la nueva sesión al principio del array (más reciente primero)
-    setSessions([newSession, ...sessions])
-    // TODO: Implementar llamada al backend para persistir la sesión
+
+    try {
+      setIsStarting(true)
+      setError('')
+      
+      const now = new Date()
+      const newSession = {
+        dealer_id: user.id,
+        start_time: now.toISOString(),
+        jackpot: 0,
+        reik: 0,
+        tips: 0,
+        hourly_pay: 0,
+        comment: null
+      }
+
+      const response = await api.post('/api/v1/sessions', newSession)
+      
+      // Agregar la nueva sesión al principio del array (más reciente primero)
+      setSessions([response, ...sessions])
+    } catch (err: any) {
+      console.error('Error al iniciar turno:', err)
+      setError(err.message || 'Error al iniciar el turno')
+    } finally {
+      setIsStarting(false)
+    }
+  }
+
+  // Handler para abrir modal de terminar turno
+  const handleOpenEndModal = (sessionId: string) => {
+    setShowEndModal(sessionId)
+    setEndFormData({ reik: '', jackpot: '' })
+    setError('')
+  }
+
+  // Handler para cerrar modal de terminar turno
+  const handleCloseEndModal = () => {
+    setShowEndModal(null)
+    setEndFormData({ reik: '', jackpot: '' })
+    setError('')
   }
 
   // Handler para terminar turno
-  const handleEndShift = (sessionId: string) => {
-    const now = new Date()
-    setSessions(sessions.map(session => {
-      if (session.id === sessionId && session.is_active) {
-        return {
-          ...session,
-          end_time: now.toISOString(),
-          is_active: false,
-          updated_at: now.toISOString(),
-          duration_hours: (now.getTime() - new Date(session.start_time).getTime()) / (1000 * 60 * 60)
+  const handleEndShift = async (sessionId: string) => {
+    // Validar que los campos requeridos estén llenos
+    if (!endFormData.reik.trim() || !endFormData.jackpot.trim()) {
+      setError('Reik y Jackpot son campos obligatorios para terminar el turno')
+      return
+    }
+
+    // Validar que sean números válidos
+    const reik = parseFloat(endFormData.reik)
+    const jackpot = parseFloat(endFormData.jackpot)
+    
+    if (isNaN(reik) || isNaN(jackpot)) {
+      setError('Reik y Jackpot deben ser números válidos')
+      return
+    }
+
+    try {
+      setIsEnding(sessionId)
+      setError('')
+      
+      // Actualizar la sesión con los valores de reik y jackpot
+      await api.put(`/api/v1/sessions/${sessionId}`, {
+        reik: reik,
+        jackpot: jackpot
+      })
+      
+      // Terminar la sesión
+      await api.post(`/api/v1/sessions/${sessionId}/end`)
+      
+      // Actualizar la sesión en el estado local
+      setSessions(sessions.map(session => {
+        if (session.id === sessionId && session.is_active) {
+          const now = new Date()
+          return {
+            ...session,
+            end_time: now.toISOString(),
+            is_active: false,
+            updated_at: now.toISOString(),
+            duration_hours: (now.getTime() - new Date(session.start_time).getTime()) / (1000 * 60 * 60),
+            reik: reik,
+            jackpot: jackpot
+          }
         }
-      }
-      return session
-    }))
-    // TODO: Implementar llamada al backend para actualizar la sesión
+        return session
+      }))
+
+      // Cerrar modal
+      handleCloseEndModal()
+    } catch (err: any) {
+      console.error('Error al terminar turno:', err)
+      setError(err.message || 'Error al terminar el turno')
+    } finally {
+      setIsEnding(null)
+    }
   }
 
   // Handler para agregar comentarios (por ahora solo simula)
@@ -139,18 +237,45 @@ export function DealerSession() {
     console.log("Agregar comentario")
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+            <p className="text-red-800 dark:text-red-200">{error}</p>
+          </div>
+        </div>
+      )}
+
       {/* Botón para iniciar turno */}
       <div className="flex justify-center px-2">
         <Button
           onClick={handleStartShift}
-          disabled={hasActiveSession}
+          disabled={hasActiveSession || isStarting}
           size="lg"
           className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-4 sm:py-6 px-6 sm:px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
         >
-          <Plus className="w-5 h-5 mr-2" />
-          Iniciar Turno
+          {isStarting ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Iniciando...
+            </>
+          ) : (
+            <>
+              <Plus className="w-5 h-5 mr-2" />
+              Iniciar Turno
+            </>
+          )}
         </Button>
       </div>
 
@@ -252,9 +377,10 @@ export function DealerSession() {
             {session.is_active && (
               <div className="flex justify-stretch sm:justify-end mt-4 sm:mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <Button
-                  onClick={() => handleEndShift(session.id)}
+                  onClick={() => handleOpenEndModal(session.id)}
+                  disabled={isEnding === session.id}
                   size="lg"
-                  className="w-full sm:w-auto bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                  className="w-full sm:w-auto bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Terminar Turno
                 </Button>
@@ -263,6 +389,91 @@ export function DealerSession() {
           </CardContent>
         </Card>
       ))}
+
+      {/* Modal para terminar turno */}
+      {showEndModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-red-600 dark:text-red-400">
+                Terminar Turno
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Para terminar el turno, completa los siguientes campos obligatorios:
+                </p>
+
+                {error && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3 text-sm text-red-800 dark:text-red-200">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="reik" className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Reik *
+                    </Label>
+                    <Input
+                      id="reik"
+                      type="number"
+                      step="1000"
+                      placeholder="Ingresa el valor del reik"
+                      value={endFormData.reik}
+                      onChange={(e) => setEndFormData({ ...endFormData, reik: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="jackpot" className="flex items-center gap-2">
+                      <Target className="h-4 w-4" />
+                      Jackpot *
+                    </Label>
+                    <Input
+                      id="jackpot"
+                      type="number"
+                      step="1000"
+                      placeholder="Ingresa el valor del jackpot"
+                      value={endFormData.jackpot}
+                      onChange={(e) => setEndFormData({ ...endFormData, jackpot: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCloseEndModal}
+                    className="flex-1"
+                    disabled={isEnding === showEndModal}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => handleEndShift(showEndModal)}
+                    disabled={isEnding === showEndModal || !endFormData.reik.trim() || !endFormData.jackpot.trim()}
+                    className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700"
+                  >
+                    {isEnding === showEndModal ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Terminando...
+                      </>
+                    ) : (
+                      'Terminar Turno'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

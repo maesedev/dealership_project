@@ -122,10 +122,20 @@ class SessionDomainService:
         
         Validación:
         - No permite terminar una sesión que ya fue terminada
+        - El jackpot debe ser mayor a cero
+        - El reik debe ser mayor a cero
         """
         # Validar que la sesión no haya sido terminada previamente
         if session.end_time is not None:
             raise ValueError("Esta sesión ya fue terminada anteriormente")
+        
+        # Validar que el jackpot sea mayor a cero
+        if session.jackpot <= 0:
+            raise ValueError("El jackpot debe ser mayor a cero para terminar la sesión")
+        
+        # Validar que el reik sea mayor a cero
+        if session.reik <= 0:
+            raise ValueError("El reik debe ser mayor a cero para terminar la sesión")
         
         if end_time is None:
             end_time = datetime.now(timezone.utc)
