@@ -171,11 +171,16 @@ class UserService:
         if not existing_user:
             return None
         
-        # Usar el servicio de dominio para actualizar
-        updated_user = self.domain_service.update_customer(existing_user, **updates)
+        # Actualizar los campos permitidos
+        for key, value in updates.items():
+            if hasattr(existing_user, key):
+                setattr(existing_user, key, value)
+        
+        # Actualizar timestamp
+        existing_user.updated_at = datetime.now(timezone.utc)
         
         # Convertir a diccionario para actualización
-        update_data = updated_user.dict(exclude={"id", "created_at", "hashed_password"})
+        update_data = existing_user.dict(exclude={"id", "created_at", "hashed_password"})
         
         # Actualizar en la base de datos
         await self.collection.update_one(
@@ -183,7 +188,7 @@ class UserService:
             {"$set": update_data}
         )
         
-        return updated_user
+        return existing_user
     
     async def update_user_roles(self, user_id: str, roles: List[UserRole]) -> Optional[UserDomain]:
         """
