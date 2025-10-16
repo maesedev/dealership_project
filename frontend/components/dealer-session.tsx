@@ -27,7 +27,11 @@ interface DealerSession {
   total_earnings: number
 }
 
-export function DealerSession() {
+interface DealerSessionProps {
+  onSessionChange?: (hasActiveSession: boolean) => void
+}
+
+export function DealerSession({ onSessionChange }: DealerSessionProps) {
   const { user } = useAuth()
   // Estado para todas las sesiones (historial completo)
   const [sessions, setSessions] = useState<DealerSession[]>([])
@@ -66,17 +70,22 @@ export function DealerSession() {
         setIsLoading(true)
         setError('')
         const response = await api.get(`/api/v1/sessions/active/user/${user.id}`)
-        setSessions(response.sessions || [])
+        const activeSessions = response.sessions || []
+        setSessions(activeSessions)
+        
+        // Notificar al componente padre sobre el estado de la sesión
+        onSessionChange?.(activeSessions.length > 0)
       } catch (err: any) {
         console.error('Error al cargar sesiones activas:', err)
         setError(err.message || 'Error al cargar sesiones activas')
+        onSessionChange?.(false)
       } finally {
         setIsLoading(false)
       }
     }
 
     loadActiveSessions()
-  }, [user?.id])
+  }, [user?.id, onSessionChange])
 
   // Actualizar duración cada minuto para todas las sesiones activas
   useEffect(() => {
@@ -151,7 +160,11 @@ export function DealerSession() {
       const response = await api.post('/api/v1/sessions', newSession)
       
       // Agregar la nueva sesión al principio del array (más reciente primero)
-      setSessions([response, ...sessions])
+      const updatedSessions = [response, ...sessions]
+      setSessions(updatedSessions)
+      
+      // Notificar al componente padre que ahora hay una sesión activa
+      onSessionChange?.(true)
     } catch (err: any) {
       console.error('Error al iniciar turno:', err)
       setError(err.message || 'Error al iniciar el turno')
@@ -205,7 +218,7 @@ export function DealerSession() {
       await api.post(`/api/v1/sessions/${sessionId}/end`)
       
       // Actualizar la sesión en el estado local
-      setSessions(sessions.map(session => {
+      const updatedSessions = sessions.map(session => {
         if (session.id === sessionId && session.is_active) {
           const now = new Date()
           return {
@@ -219,7 +232,12 @@ export function DealerSession() {
           }
         }
         return session
-      }))
+      })
+      setSessions(updatedSessions)
+      
+      // Verificar si quedan sesiones activas
+      const hasActive = updatedSessions.some(session => session.is_active)
+      onSessionChange?.(hasActive)
 
       // Cerrar modal
       handleCloseEndModal()

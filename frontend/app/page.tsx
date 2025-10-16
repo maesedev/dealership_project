@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useAuth } from "@/lib/auth-context"
+import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +21,7 @@ import {
   Plus,
   Trash2,
   UserPlus,
+  AlertCircle,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -37,6 +40,9 @@ interface Player {
 
 export default function PlayerPerformanceTracker() {
   const { theme, setTheme } = useTheme()
+  const { user } = useAuth()
+  const [hasActiveSession, setHasActiveSession] = useState(false)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
 
   const [players, setPlayers] = useState<Player[]>([
     {
@@ -45,6 +51,29 @@ export default function PlayerPerformanceTracker() {
       sessions: [{ id: 1, entrada: 0, salida: 0, comentarios: "" }],
     },
   ])
+
+  // Verificar si hay una sesión activa
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      if (!user?.id) {
+        setIsCheckingSession(false)
+        return
+      }
+
+      try {
+        const response = await api.get(`/api/v1/sessions/active/user/${user.id}`)
+        const hasActive = response.sessions && response.sessions.length > 0
+        setHasActiveSession(hasActive)
+      } catch (error) {
+        console.error('Error al verificar sesión activa:', error)
+        setHasActiveSession(false)
+      } finally {
+        setIsCheckingSession(false)
+      }
+    }
+
+    checkActiveSession()
+  }, [user?.id])
 
   const updatePlayerName = (playerId: number, name: string) => {
     setPlayers((prev) => prev.map((player) => (player.id === playerId ? { ...player, name } : player)))
@@ -191,10 +220,33 @@ export default function PlayerPerformanceTracker() {
         <AdminNavigation />
 
         {/* Sesión del Dealer */}
-        <DealerSession />
+        <DealerSession onSessionChange={setHasActiveSession} />
 
-        {/* Main Table */}
-        <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+        {/* Mensaje cuando no hay sesión activa */}
+        {!isCheckingSession && !hasActiveSession && (
+          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+            <CardContent className="p-8 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <AlertCircle className="h-16 w-16 text-orange-500" />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                    No hay turno activo
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Para registrar jugadores y transacciones, primero debes iniciar un turno.
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Haz clic en "Iniciar Turno" en la sección de arriba para comenzar.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Main Table - Solo mostrar si hay sesión activa */}
+        {hasActiveSession && (
+          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
           <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <CardTitle className="text-lg sm:text-xl font-semibold">Registro de Jugadores y Transacciones</CardTitle>
@@ -370,9 +422,11 @@ export default function PlayerPerformanceTracker() {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* Player Summary */}
-        <Card className="shadow-lg border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+        {/* Player Summary - Solo mostrar si hay sesión activa */}
+        {hasActiveSession && (
+          <Card className="shadow-lg border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
           <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-lg p-4 sm:p-6">
             <CardTitle className="text-lg sm:text-xl font-semibold">Resumen por Jugador</CardTitle>
           </CardHeader>
@@ -419,9 +473,11 @@ export default function PlayerPerformanceTracker() {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* Summary Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+        {/* Summary Section - Solo mostrar si hay sesión activa */}
+        {hasActiveSession && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
@@ -464,9 +520,11 @@ export default function PlayerPerformanceTracker() {
             </CardContent>
           </Card>
         </div>
+        )}
 
-        {/* Reset Button */}
-        <div className="flex justify-center px-2">
+        {/* Reset Button - Solo mostrar si hay sesión activa */}
+        {hasActiveSession && (
+          <div className="flex justify-center px-2">
           <Button
             onClick={resetDay}
             size="lg"
@@ -475,6 +533,7 @@ export default function PlayerPerformanceTracker() {
             <RefreshCw className="w-5 h-5 mr-2" />🆕 Nuevo Día
           </Button>
         </div>
+        )}
       </div>
     </div>
   )
