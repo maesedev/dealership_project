@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
@@ -24,11 +24,12 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { useTheme } from "next-themes"
+import { Switch } from "@/components/ui/switch"
 
 interface Session {
   id: number
-  entrada: number
-  salida: number
+  cantidad: number
+  tipo: "CASH_IN" | "CASH_OUT"
   comentarios: string
 }
 
@@ -48,7 +49,7 @@ export default function PlayerPerformanceTracker() {
     {
       id: 1,
       name: "",
-      sessions: [{ id: 1, entrada: 0, salida: 0, comentarios: "" }],
+      sessions: [],
     },
   ])
 
@@ -79,7 +80,7 @@ export default function PlayerPerformanceTracker() {
     setPlayers((prev) => prev.map((player) => (player.id === playerId ? { ...player, name } : player)))
   }
 
-  const updateSession = (playerId: number, sessionId: number, field: keyof Session, value: string | number) => {
+  const updateSession = (playerId: number, sessionId: number, field: keyof Session, value: string | number | "CASH_IN" | "CASH_OUT") => {
     setPlayers((prev) =>
       prev.map((player) =>
         player.id === playerId
@@ -103,9 +104,9 @@ export default function PlayerPerformanceTracker() {
               sessions: [
                 ...player.sessions,
                 {
-                  id: Math.max(...player.sessions.map((s) => s.id)) + 1,
-                  entrada: 0,
-                  salida: 0,
+                  id: player.sessions.length > 0 ? Math.max(...player.sessions.map((s) => s.id)) + 1 : 1,
+                  cantidad: 0,
+                  tipo: "CASH_IN" as const,
                   comentarios: "",
                 },
               ],
@@ -118,7 +119,7 @@ export default function PlayerPerformanceTracker() {
   const removeSessionFromPlayer = (playerId: number, sessionId: number) => {
     setPlayers((prev) =>
       prev.map((player) =>
-        player.id === playerId && player.sessions.length > 1
+        player.id === playerId
           ? {
               ...player,
               sessions: player.sessions.filter((session) => session.id !== sessionId),
@@ -135,7 +136,7 @@ export default function PlayerPerformanceTracker() {
       {
         id: newPlayerId,
         name: "",
-        sessions: [{ id: 1, entrada: 0, salida: 0, comentarios: "" }],
+        sessions: [],
       },
     ])
   }
@@ -155,20 +156,24 @@ export default function PlayerPerformanceTracker() {
     }).format(amount)
   }
 
-  const calculateBalance = (entrada: number, salida: number) => salida - entrada
+  const calculateBalance = (cantidad: number, tipo: "CASH_IN" | "CASH_OUT") => {
+    return tipo === "CASH_IN" ? cantidad : -cantidad
+  }
 
   const getPlayerTotals = (player: Player) => {
     return player.sessions.reduce(
       (acc, session) => {
-        const balance = calculateBalance(session.entrada, session.salida)
+        const balance = calculateBalance(session.cantidad, session.tipo)
+        const cashIn = session.tipo === "CASH_IN" ? session.cantidad : 0
+        const cashOut = session.tipo === "CASH_OUT" ? session.cantidad : 0
         return {
-          entrada: acc.entrada + session.entrada,
-          salida: acc.salida + session.salida,
+          cashIn: acc.cashIn + cashIn,
+          cashOut: acc.cashOut + cashOut,
           balance: acc.balance + balance,
           sessions: acc.sessions + 1,
         }
       },
-      { entrada: 0, salida: 0, balance: 0, sessions: 0 },
+      { cashIn: 0, cashOut: 0, balance: 0, sessions: 0 },
     )
   }
 
@@ -176,12 +181,12 @@ export default function PlayerPerformanceTracker() {
     (acc, player) => {
       const playerTotals = getPlayerTotals(player)
       return {
-        entrada: acc.entrada + playerTotals.entrada,
-        salida: acc.salida + playerTotals.salida,
+        cashIn: acc.cashIn + playerTotals.cashIn,
+        cashOut: acc.cashOut + playerTotals.cashOut,
         balance: acc.balance + playerTotals.balance,
       }
     },
-    { entrada: 0, salida: 0, balance: 0 },
+    { cashIn: 0, cashOut: 0, balance: 0 },
   )
 
   const resetDay = () => {
@@ -189,7 +194,7 @@ export default function PlayerPerformanceTracker() {
       {
         id: 1,
         name: "",
-        sessions: [{ id: 1, entrada: 0, salida: 0, comentarios: "" }],
+        sessions: [],
       },
     ])
   }
@@ -274,14 +279,14 @@ export default function PlayerPerformanceTracker() {
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                       <div className="flex items-center gap-2">
-                        <TrendingDown className="w-4 h-4 text-red-500" />
-                        Entrada
+                        <Calculator className="w-4 h-4 text-blue-500" />
+                        Cantidad
                       </div>
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-green-500" />
-                        Salida
+                        Tipo
                       </div>
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -304,34 +309,29 @@ export default function PlayerPerformanceTracker() {
                 <tbody>
                   {players.map((player) => {
                     const playerTotals = getPlayerTotals(player)
+                    const showAddButton = player.name.trim().length > 2
 
-                    return player.sessions.map((session, sessionIndex) => {
-                      const balance = calculateBalance(session.entrada, session.salida)
-                      const isFirstSession = sessionIndex === 0
-                      const isLastSession = sessionIndex === player.sessions.length - 1
-
-                      return (
-                        <tr
-                          key={`${player.id}-${session.id}`}
-                          className="border-b border-gray-100 dark:border-gray-600 hover:bg-blue-25 dark:hover:bg-gray-700 transition-colors"
-                        >
+                    return (
+                      <React.Fragment key={player.id}>
+                        {/* Fila del jugador */}
+                        <tr className="border-b border-gray-100 dark:border-gray-600 hover:bg-blue-25 dark:hover:bg-gray-700 transition-colors">
                           <td className="px-4 py-3">
-                            {isFirstSession ? (
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1">
-                                  <Input
-                                    placeholder="Nombre del jugador"
-                                    value={player.name}
-                                    onChange={(e) => updatePlayerName(player.id, e.target.value)}
-                                    className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  />
-                                  {player.sessions.length > 1 && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {player.sessions.length} Transacciones - Total: {formatCurrency(playerTotals.balance)}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <Input
+                                  placeholder="Nombre del jugador"
+                                  value={player.name}
+                                  onChange={(e) => updatePlayerName(player.id, e.target.value)}
+                                  className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                {player.sessions.length > 0 && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {player.sessions.length} Transacción(es) - Total: {formatCurrency(playerTotals.balance)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                {showAddButton && (
                                   <Button
                                     onClick={() => addSessionToPlayer(player.id)}
                                     variant="outline"
@@ -340,82 +340,103 @@ export default function PlayerPerformanceTracker() {
                                   >
                                     <Plus className="w-4 h-4" />
                                   </Button>
-                                  {players.length > 1 && (
-                                    <Button
-                                      onClick={() => removePlayer(player.id)}
-                                      variant="outline"
-                                      size="sm"
-                                      className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                </div>
+                                )}
+                                {players.length > 1 && (
+                                  <Button
+                                    onClick={() => removePlayer(player.id)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
                               </div>
-                            ) : (
-                              <div className="pl-4 text-sm text-gray-500 dark:text-gray-400">
-                                ↳ Transacción {sessionIndex + 1}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Input
-                              type="number"
-                              step="1000"
-                              placeholder="0"
-                              value={session.entrada || ""}
-                              onChange={(e) =>
-                                updateSession(player.id, session.id, "entrada", Number.parseFloat(e.target.value) || 0)
-                              }
-                              className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <Input
-                              type="number"
-                              step="1000"
-                              placeholder="0"
-                              value={session.salida || ""}
-                              onChange={(e) =>
-                                updateSession(player.id, session.id, "salida", Number.parseFloat(e.target.value) || 0)
-                              }
-                              className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <div
-                              className={`px-3 py-2 rounded-lg font-medium text-sm ${
-                                balance >= 0
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                  : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                              }`}
-                            >
-                              {formatCurrency(balance)}
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <Input
-                              placeholder="Comentarios de la Transacción"
-                              value={session.comentarios}
-                              onChange={(e) => updateSession(player.id, session.id, "comentarios", e.target.value)}
-                              className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {!isFirstSession && (
-                              <Button
-                                onClick={() => removeSessionFromPlayer(player.id, session.id)}
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3"></td>
                         </tr>
-                      )
-                    })
+                        
+                        {/* Filas de transacciones */}
+                        {player.sessions.map((session, sessionIndex) => {
+                          const balance = calculateBalance(session.cantidad, session.tipo)
+                          
+                          return (
+                            <tr
+                              key={`${player.id}-${session.id}`}
+                              className="border-b border-gray-100 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors bg-gray-50/50 dark:bg-gray-800/50"
+                            >
+                              <td className="px-4 py-3">
+                                <div className="pl-4 text-sm text-gray-500 dark:text-gray-400">
+                                  ↳ Transacción {sessionIndex + 1}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="1000"
+                                  placeholder="0"
+                                  value={session.cantidad || ""}
+                                  onChange={(e) =>
+                                    updateSession(player.id, session.id, "cantidad", Number.parseFloat(e.target.value) || 0)
+                                  }
+                                  className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-sm font-medium ${session.tipo === "CASH_OUT" ? "text-red-600" : "text-gray-400"}`}>
+                                    CASH OUT
+                                  </span>
+                                  <Switch
+                                    checked={session.tipo === "CASH_IN"}
+                                    onCheckedChange={(checked) =>
+                                      updateSession(player.id, session.id, "tipo", checked ? "CASH_IN" : "CASH_OUT")
+                                    }
+                                  />
+                                  <span className={`text-sm font-medium ${session.tipo === "CASH_IN" ? "text-green-600" : "text-gray-400"}`}>
+                                    CASH IN
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div
+                                  className={`px-3 py-2 rounded-lg font-medium text-sm ${
+                                    balance >= 0
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                      : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                  }`}
+                                >
+                                  {formatCurrency(balance)}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  placeholder="Comentarios de la Transacción"
+                                  value={session.comentarios}
+                                  onChange={(e) => updateSession(player.id, session.id, "comentarios", e.target.value)}
+                                  className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <Button
+                                  onClick={() => removeSessionFromPlayer(player.id, session.id)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </React.Fragment>
+                    )
                   })}
                 </tbody>
               </table>
@@ -446,15 +467,15 @@ export default function PlayerPerformanceTracker() {
                             <span className="font-medium">{totals.sessions}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-red-600 dark:text-red-400">Total Entrada:</span>
-                            <span className="font-medium text-red-700 dark:text-red-300">
-                              {formatCurrency(totals.entrada)}
+                            <span className="text-green-600 dark:text-green-400">Total Cash In:</span>
+                            <span className="font-medium text-green-700 dark:text-green-300">
+                              {formatCurrency(totals.cashIn)}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-green-600 dark:text-green-400">Total Salida:</span>
-                            <span className="font-medium text-green-700 dark:text-green-300">
-                              {formatCurrency(totals.salida)}
+                            <span className="text-red-600 dark:text-red-400">Total Cash Out:</span>
+                            <span className="font-medium text-red-700 dark:text-red-300">
+                              {formatCurrency(totals.cashOut)}
                             </span>
                           </div>
                           <div className="flex justify-between border-t pt-2">
@@ -478,30 +499,30 @@ export default function PlayerPerformanceTracker() {
         {/* Summary Section - Solo mostrar si hay sesión activa */}
         {hasActiveSession && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-red-600 dark:text-red-400">Total Entrada</p>
-                  <p className="text-xl sm:text-2xl font-bold text-red-800 dark:text-red-200 break-all">
-                    {formatCurrency(grandTotals.entrada)}
-                  </p>
-                </div>
-                <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
-
           <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">Total Salida</p>
+                  <p className="text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">Total Cash In</p>
                   <p className="text-xl sm:text-2xl font-bold text-green-800 dark:text-green-200 break-all">
-                    {formatCurrency(grandTotals.salida)}
+                    {formatCurrency(grandTotals.cashIn)}
                   </p>
                 </div>
                 <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 shrink-0" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium text-red-600 dark:text-red-400">Total Cash Out</p>
+                  <p className="text-xl sm:text-2xl font-bold text-red-800 dark:text-red-200 break-all">
+                    {formatCurrency(grandTotals.cashOut)}
+                  </p>
+                </div>
+                <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 shrink-0" />
               </div>
             </CardContent>
           </Card>
