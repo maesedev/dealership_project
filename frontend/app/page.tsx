@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DealerSession } from "@/components/dealer-session"
 import { UserMenu } from "@/components/user-menu"
+import { AdminNavigation } from "@/components/admin-navigation"
 import {
   User,
   TrendingUp,
@@ -185,6 +186,9 @@ export default function PlayerPerformanceTracker() {
 
         {/* User Menu */}
         <UserMenu />
+
+        {/* Admin Link */}
+        <AdminNavigation />
 
         {/* Sesión del Dealer */}
         <DealerSession />

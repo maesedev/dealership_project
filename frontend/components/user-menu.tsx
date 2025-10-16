@@ -10,14 +10,15 @@ export function UserMenu() {
 
   if (!user) return null
 
-  const getRoleBadge = (roles: string[]) => {
+  const getRoleBadge = (roles: string[] | undefined) => {
+    if (!roles || roles.length === 0) return { label: 'Usuario', color: 'bg-gray-500' }
     if (roles.includes('ADMIN')) return { label: 'Admin', color: 'bg-red-500' }
     if (roles.includes('MANAGER')) return { label: 'Manager', color: 'bg-purple-500' }
     if (roles.includes('DEALER')) return { label: 'Dealer', color: 'bg-blue-500' }
     return { label: 'Usuario', color: 'bg-gray-500' }
   }
 
-  const badge = getRoleBadge(user.roles)
+  const badge = getRoleBadge(user?.roles)
 
   return (
     <Card className="shadow-lg border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm">
