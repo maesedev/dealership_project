@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DealerSession } from "@/components/dealer-session"
+import { UserMenu } from "@/components/user-menu"
 import {
   User,
   TrendingUp,
@@ -181,6 +182,9 @@ export default function PlayerPerformanceTracker() {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
         </div>
+
+        {/* User Menu */}
+        <UserMenu />
 
         {/* Sesión del Dealer */}
         <DealerSession />

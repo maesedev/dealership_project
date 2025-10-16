@@ -1,6 +1,8 @@
 // app/layout.tsx
 import './globals.css'
 import { ThemeProvider } from 'next-themes'
+import { AuthProvider } from '@/lib/auth-context'
+import { ProtectedRoute } from '@/components/protected-route'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
@@ -20,7 +22,11 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
+          <AuthProvider>
+            <ProtectedRoute>
+              {children}
+            </ProtectedRoute>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
