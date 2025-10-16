@@ -8,7 +8,17 @@ import { LogOut, User, Shield } from 'lucide-react'
 export function UserMenu() {
   const { user, logout } = useAuth()
 
-  if (!user) return null
+  console.log('🔍 [DEBUG] UserMenu renderizado con user:', user ? {
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    roles: user.roles
+  } : 'null')
+
+  if (!user) {
+    console.log('🔍 [DEBUG] UserMenu: No hay usuario, no renderizando')
+    return null
+  }
 
   const getRoleBadge = (roles: string[] | undefined) => {
     if (!roles || roles.length === 0) return { label: 'Usuario', color: 'bg-gray-500' }

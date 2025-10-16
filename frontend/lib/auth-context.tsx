@@ -54,21 +54,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Función para obtener información del usuario actual
   const fetchCurrentUser = useCallback(async (authToken: string) => {
     try {
+      console.log('🔍 [DEBUG] fetchCurrentUser iniciado con token:', authToken.substring(0, 20) + '...')
+      console.log('🔍 [DEBUG] URL del endpoint:', `${API_BASE_URL}/api/v1/auth/me`)
+      
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
       })
 
+      console.log('🔍 [DEBUG] Respuesta del servidor:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.log('🔍 [DEBUG] Error response body:', errorText)
         throw new Error('No se pudo obtener información del usuario')
       }
 
       const userData = await response.json()
-      setUser(userData)
-      return userData
+      console.log('🔍 [DEBUG] Datos del usuario recibidos:', userData)
+      setUser(userData.user)
+      console.log('🔍 [DEBUG] Usuario seteado en estado:', userData.user)
+      return userData.user
     } catch (error) {
-      console.error('Error al obtener usuario:', error)
+      console.error('🔍 [DEBUG] Error al obtener usuario:', error)
       throw error
     }
   }, [])
@@ -171,27 +184,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        console.log('🚀 [DEBUG] Iniciando autenticación...')
         const storedToken = localStorage.getItem('auth_token')
+        console.log('🚀 [DEBUG] Token encontrado en localStorage:', storedToken ? 'SÍ' : 'NO')
+        console.log('🚀 [DEBUG] Token (primeros 20 chars):', storedToken ? storedToken.substring(0, 20) + '...' : 'null')
         
         if (storedToken) {
+          console.log('🚀 [DEBUG] Token existe, seteando en estado...')
           setToken(storedToken)
           
           // Intentar obtener información del usuario
           try {
+            console.log('🚀 [DEBUG] Intentando obtener datos del usuario...')
             await fetchCurrentUser(storedToken)
+            console.log('🚀 [DEBUG] Usuario obtenido exitosamente, programando renovación...')
             // Si el token es válido, programar renovación
             // Los tokens del backend expiran en 30 minutos (1800 segundos)
             scheduleTokenRefresh(1800)
           } catch (error) {
             // Token inválido o expirado
-            console.error('Token inválido:', error)
+            console.error('🚀 [DEBUG] Token inválido, limpiando y redirigiendo:', error)
             clearToken()
             router.push('/login')
           }
+        } else {
+          console.log('🚀 [DEBUG] No hay token, usuario no autenticado')
         }
       } catch (error) {
-        console.error('Error al inicializar autenticación:', error)
+        console.error('🚀 [DEBUG] Error general al inicializar autenticación:', error)
       } finally {
+        console.log('🚀 [DEBUG] Finalizando carga, isLoading = false')
         setIsLoading(false)
       }
     }
@@ -211,6 +233,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('unauthorized' as any, handleUnauthorized)
     }
   }, [logout])
+
+  // Debug del estado actual
+  console.log('🔍 [DEBUG] Estado actual del AuthContext:', {
+    user: user ? { id: user.id, name: user.name, username: user.username, roles: user.roles } : null,
+    token: token ? token.substring(0, 20) + '...' : null,
+    isLoading,
+    isAuthenticated: !!user && !!token
+  })
 
   const value: AuthContextType = {
     user,
