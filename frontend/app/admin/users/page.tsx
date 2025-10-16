@@ -41,6 +41,8 @@ export default function UsersAdminPage() {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [filterRole, setFilterRole] = useState<string>('ALL')
+  const [filterStatus, setFilterStatus] = useState<string>('ALL')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [error, setError] = useState('')
@@ -48,7 +50,7 @@ export default function UsersAdminPage() {
   // Verificar permisos
   useEffect(() => {
     if (!authLoading && currentUser) {
-      const hasPermission = currentUser.roles.includes('ADMIN') || currentUser.roles.includes('MANAGER')
+      const hasPermission = currentUser.roles?.includes('ADMIN') || currentUser.roles?.includes('MANAGER')
       if (!hasPermission) {
         router.push('/')
       }
@@ -78,17 +80,31 @@ export default function UsersAdminPage() {
 
   // Filtrar usuarios
   useEffect(() => {
+    let filtered = users
+
+    // Filtrar por búsqueda de texto
     if (searchTerm) {
-      const filtered = users.filter(
+      filtered = filtered.filter(
         (u) =>
           u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           u.username?.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      setFilteredUsers(filtered)
-    } else {
-      setFilteredUsers(users)
     }
-  }, [searchTerm, users])
+
+    // Filtrar por rol
+    if (filterRole !== 'ALL') {
+      filtered = filtered.filter((u) => u.roles.includes(filterRole))
+    }
+
+    // Filtrar por estado
+    if (filterStatus !== 'ALL') {
+      filtered = filtered.filter((u) => 
+        filterStatus === 'ACTIVE' ? u.is_active : !u.is_active
+      )
+    }
+
+    setFilteredUsers(filtered)
+  }, [searchTerm, filterRole, filterStatus, users])
 
   // Activar usuario
   const activateUser = async (userId: string) => {
@@ -129,7 +145,7 @@ export default function UsersAdminPage() {
     return 'bg-gray-500 text-white'
   }
 
-  const isAdmin = currentUser?.roles.includes('ADMIN')
+  const isAdmin = currentUser?.roles?.includes('ADMIN') ?? false
 
   if (authLoading || isLoading) {
     return (
@@ -176,17 +192,66 @@ export default function UsersAdminPage() {
           </Button>
         </div>
 
-        {/* Buscador */}
+        {/* Buscador y Filtros */}
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-gray-400" />
-              <Input
-                placeholder="Buscar por nombre o usuario..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
-              />
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* Búsqueda */}
+              <div className="flex items-center gap-2 flex-1">
+                <Search className="h-5 w-5 text-gray-400" />
+                <Input
+                  placeholder="Buscar por nombre o usuario..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+
+              {/* Filtro por Rol */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">Rol:</Label>
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="ALL">Todos</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="DEALER">Dealer</option>
+                  <option value="USER">User</option>
+                </select>
+              </div>
+
+              {/* Filtro por Estado */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">Estado:</Label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="ALL">Todos</option>
+                  <option value="ACTIVE">Activos</option>
+                  <option value="INACTIVE">Inactivos</option>
+                </select>
+              </div>
+
+              {/* Botón para limpiar filtros */}
+              {(searchTerm || filterRole !== 'ALL' || filterStatus !== 'ALL') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('')
+                    setFilterRole('ALL')
+                    setFilterStatus('ALL')
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  Limpiar Filtros
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -351,7 +416,7 @@ function CreateUserModal({
 }: {
   onClose: () => void
   onSuccess: () => void
-  isAdmin: boolean
+  isAdmin: boolean | undefined
 }) {
   const [formData, setFormData] = useState({
     username: '',
@@ -468,7 +533,7 @@ function EditUserModal({
   user: User
   onClose: () => void
   onSuccess: () => void
-  isAdmin: boolean
+  isAdmin: boolean | undefined
 }) {
   const [formData, setFormData] = useState({
     name: user.name,
