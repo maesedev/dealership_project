@@ -27,7 +27,18 @@ class SessionService:
                             tips: int = 0, hourly_pay: int = 0, comment: str = None) -> SessionDomain:
         """
         Crear una nueva sesión usando el dominio.
+        
+        Regla de negocio:
+        - Un usuario solo puede tener una sesión abierta a la vez
         """
+        # Verificar si el dealer ya tiene una sesión activa
+        active_session = await self.get_active_session_by_dealer(dealer_id)
+        if active_session:
+            raise ValueError(
+                f"El usuario ya tiene una sesión activa (ID: {active_session.id}). "
+                "Debe cerrar la sesión actual antes de abrir una nueva."
+            )
+        
         # Usar el servicio de dominio para crear la sesión
         session = self.domain_service.create_session(
             dealer_id=dealer_id,
