@@ -515,7 +515,7 @@ export default function PlayerPerformanceTracker() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+      <div className="max-w-full sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[80vw] xl:max-w-[75vw] mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
           <div className="text-center flex-1">
@@ -596,46 +596,46 @@ export default function PlayerPerformanceTracker() {
                 minHeight: hasVisibleDropdown ? '400px' : '200px',
                 transition: 'min-height 0.3s ease-in-out'
               }}>
-                <table className="w-full">
+                <table className="w-full min-w-[1000px]">
                 <thead className="bg-blue-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 w-[30%] min-w-[200px]">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
                         Jugador
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 w-[15%] min-w-[100px]">
                       <div className="flex items-center gap-2">
                         <Calculator className="w-4 h-4 text-blue-500" />
                         Cantidad
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 w-[12%] min-w-[80px]">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-green-500" />
                         Tipo
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 w-[15%] min-w-[110px]">
                       <div className="flex items-center gap-2">
                         <Calculator className="w-4 h-4 text-orange-500" />
                         Medio de Pago
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 w-[12%] min-w-[80px]">
                       <div className="flex items-center gap-2">
                         <Calculator className="w-4 h-4 text-blue-500" />
                         Balance
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200 w-[16%] min-w-[120px]">
                       <div className="flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 text-purple-500" />
                         Comentarios
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200 w-[5%] min-w-[60px]">
                       Acciones
                     </th>
                   </tr>
@@ -654,7 +654,7 @@ export default function PlayerPerformanceTracker() {
                       <React.Fragment key={player.id}>
                         {/* Fila del jugador */}
                         <tr className="border-b border-gray-100 dark:border-gray-600 hover:bg-blue-25 dark:hover:bg-gray-700 transition-colors">
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 w-[30%] min-w-[200px]">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 relative">
                                 <div className={`border-2 ${player.borderColor} rounded-lg p-2 ${player.transactions.length > 0 ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
@@ -665,8 +665,9 @@ export default function PlayerPerformanceTracker() {
                                       value={player.searchQuery}
                                       onChange={(e) => updateSearchQuery(player.id, e.target.value)}
                                       disabled={player.transactions.length > 0}
-                                      className={`border-0 focus:ring-0 p-0 h-auto ${player.transactions.length > 0 ? 'bg-transparent cursor-not-allowed opacity-70' : ''}`}
+                                      className={`border-0 focus:ring-0 focus:outline-none focus:border-0 focus:shadow-none focus:bg-transparent p-0 h-auto ${player.transactions.length > 0 ? 'bg-transparent cursor-not-allowed opacity-70' : ''}`}
                                       title={player.transactions.length > 0 ? 'No se puede cambiar el jugador después de crear transacciones' : ''}
+                                      style={{ boxShadow: 'none', outline: 'none' }}
                                     />
                                   </div>
                                 </div>
@@ -786,12 +787,12 @@ export default function PlayerPerformanceTracker() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3 w-[15%] min-w-[100px]"></td>
+                          <td className="px-4 py-3 w-[12%] min-w-[80px]"></td>
+                          <td className="px-4 py-3 w-[15%] min-w-[110px]"></td>
+                          <td className="px-4 py-3 w-[12%] min-w-[80px]"></td>
+                          <td className="px-4 py-3 w-[16%] min-w-[120px]"></td>
+                          <td className="px-4 py-3 w-[5%] min-w-[60px]"></td>
                         </tr>
                         
                         {/* Filas de transacciones */}
@@ -803,12 +804,12 @@ export default function PlayerPerformanceTracker() {
                               key={`${player.id}-${transaction.id}`}
                               className="border-b border-gray-100 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors bg-gray-50/50 dark:bg-gray-800/50"
                             >
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 w-[30%] min-w-[200px]">
                                 <div className="pl-4 text-sm text-gray-500 dark:text-gray-400">
                                   ↳ Transacción {transactionIndex + 1}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 w-[15%] min-w-[100px]">
                                 <Input
                                   type="number"
                                   step="1000"
@@ -820,7 +821,7 @@ export default function PlayerPerformanceTracker() {
                                   className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 w-[12%] min-w-[80px]">
                                 <div className="flex items-center gap-2">
                                   <span className={`text-sm font-medium ${transaction.operation_type === "CASH OUT" ? "text-red-600" : "text-gray-400"}`}>
                                     CASH OUT
@@ -836,7 +837,7 @@ export default function PlayerPerformanceTracker() {
                                   </span>
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 w-[15%] min-w-[110px]">
                                 <select
                                   value={transaction.transaction_media}
                                   onChange={(e) =>
@@ -848,7 +849,7 @@ export default function PlayerPerformanceTracker() {
                                   <option value="CASH">Cash</option>
                                 </select>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 w-[12%] min-w-[80px]">
                                 <div
                                   className={`px-3 py-2 rounded-lg font-medium text-sm ${
                                     balance >= 0
@@ -859,7 +860,7 @@ export default function PlayerPerformanceTracker() {
                                   {formatCurrency(balance)}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3 w-[16%] min-w-[120px]">
                                 <Input
                                   placeholder="Comentarios de la Transacción"
                                   value={transaction.comment || ""}
@@ -867,7 +868,7 @@ export default function PlayerPerformanceTracker() {
                                   className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 />
                               </td>
-                              <td className="px-4 py-3 text-center">
+                              <td className="px-4 py-3 text-center w-[5%] min-w-[60px]">
                                 <Button
                                   onClick={() => removeTransactionFromPlayer(player.id, transaction.id)}
                                   variant="ghost"
@@ -989,18 +990,6 @@ export default function PlayerPerformanceTracker() {
         </div>
         )}
 
-        {/* Reset Button - Solo mostrar si hay sesión activa */}
-        {hasActiveSession && (
-          <div className="flex justify-center px-2">
-          <Button
-            onClick={resetDay}
-            size="lg"
-            className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-          >
-            <RefreshCw className="w-5 h-5 mr-2" />🆕 Nuevo Día
-          </Button>
-        </div>
-        )}
       </div>
     </div>
   )
