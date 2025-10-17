@@ -86,7 +86,6 @@ class DailyReportResponseSchema(BaseModel):
     comment: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    net_profit: int
     total_income: int
     is_profitable: bool
     profit_margin: float
@@ -110,7 +109,6 @@ class DailyReportStatsSchema(BaseModel):
     total_jackpot: int
     total_ganancias: int
     total_gastos: int
-    total_net_profit: int
     average_daily_profit: float
     profitable_days: int
     unprofitable_days: int

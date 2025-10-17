@@ -45,12 +45,10 @@ async def generate_daily_report_from_sessions(
     """
     Genera un reporte diario a partir de las sesiones del día.
     
-    El reporte suma:
-    - reik de todas las sesiones
-    - jackpot de todas las sesiones
-    - costo del dealer (duración de sesión × hourly_pay)
-    - jackpots ganados por usuarios
-    - bonos otorgados
+    El reporte calcula:
+    - Ingresos: solo el reik de todas las sesiones
+    - Gastos: bonos + jackpots ganados + (costo por hora × horas de trabajo) + tips
+    - Ganancias: reik - gastos
     """
     # Obtener todas las sesiones del día
     start_of_day = datetime.combine(report_date, datetime.min.time())
@@ -61,7 +59,8 @@ async def generate_daily_report_from_sessions(
     # Inicializar valores
     total_reik = 0
     total_jackpot = 0
-    total_gastos = 0
+    total_dealer_cost = 0
+    total_tips = 0
     session_ids = []
     jackpot_wins_list = []
     bonos_list = []
@@ -71,6 +70,10 @@ async def generate_daily_report_from_sessions(
         total_reik += session.reik
         total_jackpot += session.jackpot
         session_ids.append(session.id)
+        
+        # Sumar tips de los dealers
+        if session.tips:
+            total_tips += session.tips
         
         # Calcular costo del dealer (duración × hourly_pay)
         if session.start_time and session.hourly_pay:
@@ -82,7 +85,7 @@ async def generate_daily_report_from_sessions(
                 duration_hours = (datetime.now(timezone.utc) - session.start_time).total_seconds() / 3600
             
             dealer_cost = duration_hours * session.hourly_pay
-            total_gastos += int(dealer_cost)
+            total_dealer_cost += int(dealer_cost)
     
     # Obtener jackpots ganados del día (filtrando por rango de fechas)
     jackpots = await jackpot_price_service.filter_jackpots(
@@ -91,12 +94,14 @@ async def generate_daily_report_from_sessions(
         limit=1000
     )
     
-    # Crear lista de jackpot_wins
+    # Crear lista de jackpot_wins y sumar total
+    total_jackpot_wins = 0
     for jackpot in jackpots:
         jackpot_wins_list.append(JackpotWinEntry(
             jackpot_win_id=jackpot.id,
             sum=jackpot.value
         ))
+        total_jackpot_wins += jackpot.value
     
     # Obtener bonos del día (filtrando por rango de fechas)
     bonos = await bono_service.filter_bonos(
@@ -105,15 +110,21 @@ async def generate_daily_report_from_sessions(
         limit=1000
     )
     
-    # Crear lista de bonos
+    # Crear lista de bonos y sumar total
+    total_bonos = 0
     for bono in bonos:
         bonos_list.append(BonoEntry(
             bono_id=bono.id,
             sum=bono.value
         ))
+        total_bonos += bono.value
     
-    # Ganancias = reik + jackpot (puede ajustarse según lógica de negocio)
-    total_ganancias = total_reik + total_jackpot
+    # NUEVA LÓGICA:
+    # - Ingresos = solo reik
+    # - Gastos = bonos + jackpots ganados + (costo por hora * horas de trabajo) + tips
+    # - Ganancias = reik (ingresos) - gastos
+    total_gastos = total_bonos + total_jackpot_wins + total_dealer_cost + total_tips
+    total_ganancias = total_reik - total_gastos
     
     # Crear el reporte
     report = await daily_report_service.create_daily_report(
@@ -125,7 +136,7 @@ async def generate_daily_report_from_sessions(
         sessions=session_ids,
         jackpot_wins=jackpot_wins_list,
         bonos=bonos_list,
-        comment=f"Reporte generado automáticamente con {len(sessions)} sesiones, {len(jackpot_wins_list)} jackpots y {len(bonos_list)} bonos"
+        comment=f"Reporte generado automáticamente con {len(sessions)} sesiones, {len(jackpot_wins_list)} jackpots, {len(bonos_list)} bonos. Gastos incluyen: bonos, jackpots, costos de dealers y tips."
     )
     
     return report
@@ -195,7 +206,6 @@ async def get_daily_report_by_date(
             comment=report.comment,
             created_at=report.created_at,
             updated_at=report.updated_at,
-            net_profit=report.get_net_profit(),
             total_income=report.get_total_income(),
             is_profitable=report.is_profitable(),
             profit_margin=report.get_profit_margin()
@@ -234,7 +244,6 @@ async def get_daily_report(
         comment=report.comment,
         created_at=report.created_at,
         updated_at=report.updated_at,
-        net_profit=report.get_net_profit(),
         total_income=report.get_total_income(),
         is_profitable=report.is_profitable(),
         profit_margin=report.get_profit_margin()
@@ -277,7 +286,6 @@ async def get_daily_reports(
             comment=r.comment,
             created_at=r.created_at,
             updated_at=r.updated_at,
-            net_profit=r.get_net_profit(),
             total_income=r.get_total_income(),
             is_profitable=r.is_profitable(),
             profit_margin=r.get_profit_margin()
@@ -320,7 +328,6 @@ async def get_profitable_reports(
             comment=r.comment,
             created_at=r.created_at,
             updated_at=r.updated_at,
-            net_profit=r.get_net_profit(),
             total_income=r.get_total_income(),
             is_profitable=r.is_profitable(),
             profit_margin=r.get_profit_margin()
@@ -388,7 +395,6 @@ async def update_daily_report(
             comment=report.comment,
             created_at=report.created_at,
             updated_at=report.updated_at,
-            net_profit=report.get_net_profit(),
             total_income=report.get_total_income(),
             is_profitable=report.is_profitable(),
             profit_margin=report.get_profit_margin()

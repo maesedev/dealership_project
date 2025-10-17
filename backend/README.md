@@ -774,6 +774,20 @@ print(response.json())
 
 ### 📊 Reportes Diarios (`/api/v1/daily-reports`)
 
+#### Lógica de Cálculo de Reportes
+
+Los reportes diarios se calculan automáticamente con la siguiente lógica:
+
+- **Ingresos**: Solo el `reik` de todas las sesiones del día
+- **Gastos**: `bonos` + `jackpots ganados` + (`costo por hora` × `horas trabajadas`) + `tips`
+- **Ganancias**: `reik` - `gastos`
+
+**Desglose de gastos**:
+1. **Bonos otorgados**: Suma de todos los bonos del día
+2. **Jackpots ganados**: Suma de todos los jackpots ganados por usuarios
+3. **Costos de dealer**: Suma de (duración de cada sesión × tarifa por hora del dealer)
+4. **Tips**: Suma de todas las propinas (tips) de las sesiones del día
+
 #### `GET /api/v1/daily-reports/date/{report_date}`
 **Descripción**: Obtener reporte por fecha  
 **Permisos**: Manager o Admin  
@@ -807,12 +821,16 @@ print(response.json())
   "comment": "string",
   "created_at": "datetime",
   "updated_at": "datetime",
-  "net_profit": "int",
   "total_income": "int",
   "is_profitable": "bool",
   "profit_margin": "float"
 }
 ```
+
+**Campos calculados**:
+- `total_income`: Ingresos totales (solo reik)
+- `is_profitable`: true si ganancias > 0
+- `profit_margin`: (ganancias / total_income) × 100
 
 #### `GET /api/v1/daily-reports/{report_id}`
 **Descripción**: Obtener reporte por ID  

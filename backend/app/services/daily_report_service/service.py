@@ -289,14 +289,8 @@ class DailyReportService:
             "total_gastos": 0
         }
         
-        total_net_profit = (
-            totals["total_reik"] + 
-            totals["total_jackpot"] + 
-            totals["total_ganancias"] - 
-            totals["total_gastos"]
-        )
-        
-        average_daily_profit = total_net_profit / total_reports if total_reports > 0 else 0
+        # Calcular ganancia total (ya que ganancias = reik - gastos)
+        average_daily_profit = totals["total_ganancias"] / total_reports if total_reports > 0 else 0
         
         # Contar días rentables y no rentables
         cursor = self.collection.find(date_filter)
@@ -342,7 +336,6 @@ class DailyReportService:
             "total_jackpot": totals["total_jackpot"],
             "total_ganancias": totals["total_ganancias"],
             "total_gastos": totals["total_gastos"],
-            "total_net_profit": total_net_profit,
             "average_daily_profit": round(average_daily_profit, 2),
             "profitable_days": profitable_days,
             "unprofitable_days": unprofitable_days,

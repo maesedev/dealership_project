@@ -37,7 +37,6 @@ interface DailyReportData {
   comment: string | null
   created_at: string
   updated_at: string
-  net_profit: number
   total_income: number
   is_profitable: boolean
   profit_margin: number
@@ -486,7 +485,7 @@ export default function DailyReportPage() {
               </Card>
             </div>
 
-            {/* Ganancia Neta */}
+            {/* Ganancias */}
             <Card
               className={`shadow-xl border-0 ${
                 reportData.is_profitable
@@ -497,9 +496,9 @@ export default function DailyReportPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg font-medium">Ganancia Neta</p>
+                    <p className="text-lg font-medium">Ganancias</p>
                     <p className="text-3xl font-bold mt-1">
-                      {formatCurrency(reportData.net_profit)}
+                      {formatCurrency(reportData.ganancias)}
                     </p>
                     <p className="text-sm opacity-90 mt-1">
                       Margen: {reportData.profit_margin.toFixed(2)}%
@@ -921,6 +920,19 @@ export default function DailyReportPage() {
                                 </p>
                                 <p className="font-medium">
                                   {session.duration_hours.toFixed(2)} horas
+                                </p>
+                              </div>
+                            )}
+                            {session.duration_hours && session.hourly_pay && (
+                              <div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  Valor del Turno
+                                </p>
+                                <p className="font-medium text-orange-600 dark:text-orange-400">
+                                  {formatCurrency(Math.round(session.duration_hours * session.hourly_pay))}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500">
+                                  {session.duration_hours.toFixed(2)}h × {formatCurrency(session.hourly_pay)}
                                 </p>
                               </div>
                             )}
