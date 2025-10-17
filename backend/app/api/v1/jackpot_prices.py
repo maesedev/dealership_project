@@ -93,7 +93,7 @@ async def get_jackpot_price(
     Obtener un premio jackpot por ID.
     Requiere autenticación.
     """
-    jackpot = await jackpot_price_service.get_jackpot_price_by_id(jackpot_id)
+    jackpot = await jackpot_price_service.get_jackpot_by_id(jackpot_id)
     if not jackpot:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -179,7 +179,7 @@ async def update_jackpot_price(
     """
     try:
         # Obtener el premio jackpot actual para verificar la sesión
-        existing_jackpot = await jackpot_price_service.get_jackpot_price_by_id(jackpot_id)
+        existing_jackpot = await jackpot_price_service.get_jackpot_by_id(jackpot_id)
         if not existing_jackpot:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -239,7 +239,7 @@ async def update_jackpot_price(
         if jackpot_data.comment is not None:
             update_dict["comment"] = jackpot_data.comment
         
-        jackpot = await jackpot_price_service.update_jackpot_price(jackpot_id, **update_dict)
+        jackpot = await jackpot_price_service.update_jackpot(jackpot_id, **update_dict)
         if not jackpot:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -54,7 +54,8 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
   const [showEndModal, setShowEndModal] = useState<string | null>(null)
   const [endFormData, setEndFormData] = useState({
     reik: '',
-    jackpot: ''
+    jackpot: '',
+    tips: ''
   })
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [selectedSessionForComment, setSelectedSessionForComment] = useState<string | null>(null)
@@ -194,14 +195,14 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
   // Handler para abrir modal de terminar turno
   const handleOpenEndModal = (sessionId: string) => {
     setShowEndModal(sessionId)
-    setEndFormData({ reik: '', jackpot: '' })
+    setEndFormData({ reik: '', jackpot: '', tips: '' })
     setError('')
   }
 
   // Handler para cerrar modal de terminar turno
   const handleCloseEndModal = () => {
     setShowEndModal(null)
-    setEndFormData({ reik: '', jackpot: '' })
+    setEndFormData({ reik: '', jackpot: '', tips: '' })
     setError('')
   }
 
@@ -216,9 +217,10 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
     // Validar que sean números válidos
     const reik = parseFloat(endFormData.reik)
     const jackpot = parseFloat(endFormData.jackpot)
+    const tips = endFormData.tips.trim() ? parseFloat(endFormData.tips) : 0
     
-    if (isNaN(reik) || isNaN(jackpot)) {
-      setError('Reik y Jackpot deben ser números válidos')
+    if (isNaN(reik) || isNaN(jackpot) || isNaN(tips)) {
+      setError('Los valores deben ser números válidos')
       return
     }
 
@@ -226,10 +228,11 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
       setIsEnding(sessionId)
       setError('')
       
-      // Actualizar la sesión con los valores de reik y jackpot
+      // Actualizar la sesión con los valores de reik, jackpot y tips
       await api.put(`/api/v1/sessions/${sessionId}`, {
         reik: reik,
-        jackpot: jackpot
+        jackpot: jackpot,
+        tips: tips
       })
       
       // Terminar la sesión
@@ -246,7 +249,8 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
             updated_at: now.toISOString(),
             duration_hours: (now.getTime() - new Date(session.start_time).getTime()) / (1000 * 60 * 60),
             reik: reik,
-            jackpot: jackpot
+            jackpot: jackpot,
+            tips: tips
           }
         }
         return session
@@ -511,6 +515,22 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
                       placeholder="Ingresa el valor del jackpot"
                       value={endFormData.jackpot}
                       onChange={(e) => setEndFormData({ ...endFormData, jackpot: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="tips" className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Propinas (opcional)
+                    </Label>
+                    <Input
+                      id="tips"
+                      type="number"
+                      step="1000"
+                      placeholder="Ingresa el valor de las propinas"
+                      value={endFormData.tips}
+                      onChange={(e) => setEndFormData({ ...endFormData, tips: e.target.value })}
                       className="mt-1"
                     />
                   </div>

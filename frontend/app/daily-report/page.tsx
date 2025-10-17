@@ -18,6 +18,9 @@ import {
   ArrowLeft,
   Sun,
   Moon,
+  ChevronDown,
+  ChevronUp,
+  Edit2,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -56,6 +59,29 @@ interface SessionData {
   duration_hours: number | null
 }
 
+interface JackpotData {
+  id: string
+  user_id: string
+  session_id: string
+  value: number
+  winner_hand: string
+  comment: string | null
+  created_at: string
+  updated_at: string
+  user_name?: string
+}
+
+interface BonoData {
+  id: string
+  user_id: string
+  session_id: string
+  value: number
+  comment: string | null
+  created_at: string
+  updated_at: string
+  user_name?: string
+}
+
 export default function DailyReportPage() {
   const { theme, setTheme } = useTheme()
   const { user } = useAuth()
@@ -65,10 +91,17 @@ export default function DailyReportPage() {
   )
   const [reportData, setReportData] = useState<DailyReportData | null>(null)
   const [sessionsData, setSessionsData] = useState<SessionData[]>([])
+  const [jackpotsData, setJackpotsData] = useState<JackpotData[]>([])
+  const [bonosData, setBonosData] = useState<BonoData[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [newHourlyPay, setNewHourlyPay] = useState<number>(0)
+  const [isSessionsExpanded, setIsSessionsExpanded] = useState<boolean>(true)
+  const [isJackpotsExpanded, setIsJackpotsExpanded] = useState<boolean>(false)
+  const [isBonosExpanded, setIsBonosExpanded] = useState<boolean>(false)
+  const [editingSessionData, setEditingSessionData] = useState<string | null>(null)
+  const [editFormData, setEditFormData] = useState({ reik: 0, jackpot: 0, tips: 0 })
 
   // Verificar permisos
   useEffect(() => {
@@ -104,11 +137,75 @@ export default function DailyReportPage() {
       } else {
         setSessionsData([])
       }
+
+      // Cargar datos completos de jackpots
+      if (report.jackpot_wins && report.jackpot_wins.length > 0) {
+        const jackpotsPromises = report.jackpot_wins.map(async (jackpot) => {
+          try {
+            const jackpotData = await api.get<JackpotData>(
+              `/api/v1/jackpot-prices/${jackpot.jackpot_win_id}`
+            )
+            // Cargar nombre del usuario
+            try {
+              const userData = await api.get<{ name: string }>(
+                `/api/v1/users/${jackpotData.user_id}`
+              )
+              jackpotData.user_name = userData.name
+            } catch (err) {
+              console.error("Error al cargar usuario:", err)
+              jackpotData.user_name = "Usuario desconocido"
+            }
+            return jackpotData
+          } catch (err) {
+            console.error("Error al cargar jackpot:", err)
+            return null
+          }
+        })
+        const jackpots = (await Promise.all(jackpotsPromises)).filter(
+          (j) => j !== null
+        ) as JackpotData[]
+        setJackpotsData(jackpots)
+      } else {
+        setJackpotsData([])
+      }
+
+      // Cargar datos completos de bonos
+      if (report.bonos && report.bonos.length > 0) {
+        const bonosPromises = report.bonos.map(async (bono) => {
+          try {
+            const bonoData = await api.get<BonoData>(
+              `/api/v1/bonos/${bono.bono_id}`
+            )
+            // Cargar nombre del usuario
+            try {
+              const userData = await api.get<{ name: string }>(
+                `/api/v1/users/${bonoData.user_id}`
+              )
+              bonoData.user_name = userData.name
+            } catch (err) {
+              console.error("Error al cargar usuario:", err)
+              bonoData.user_name = "Usuario desconocido"
+            }
+            return bonoData
+          } catch (err) {
+            console.error("Error al cargar bono:", err)
+            return null
+          }
+        })
+        const bonos = (await Promise.all(bonosPromises)).filter(
+          (b) => b !== null
+        ) as BonoData[]
+        setBonosData(bonos)
+      } else {
+        setBonosData([])
+      }
     } catch (err: any) {
       console.error("Error al cargar reporte:", err)
       setError(err.message || "Error al cargar el reporte")
       setReportData(null)
       setSessionsData([])
+      setJackpotsData([])
+      setBonosData([])
     } finally {
       setLoading(false)
     }
@@ -129,6 +226,33 @@ export default function DailyReportPage() {
     }
   }
 
+  const startEditingSession = (session: SessionData) => {
+    setEditingSessionData(session.id)
+    setEditFormData({
+      reik: session.reik,
+      jackpot: session.jackpot,
+      tips: session.tips,
+    })
+  }
+
+  const cancelEditingSession = () => {
+    setEditingSessionData(null)
+    setEditFormData({ reik: 0, jackpot: 0, tips: 0 })
+  }
+
+  const updateSessionData = async (sessionId: string) => {
+    try {
+      await api.put(`/api/v1/sessions/${sessionId}`, editFormData)
+      // Recargar el reporte para reflejar los cambios
+      await loadReport()
+      setEditingSessionData(null)
+      setEditFormData({ reik: 0, jackpot: 0, tips: 0 })
+    } catch (err: any) {
+      console.error("Error al actualizar sesión:", err)
+      alert("Error al actualizar la sesión: " + err.message)
+    }
+  }
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
@@ -144,6 +268,14 @@ export default function DailyReportPage() {
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
+    })
+  }
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString("es-CO", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     })
   }
 
@@ -231,7 +363,8 @@ export default function DailyReportPage() {
         {/* Resumen del reporte */}
         {reportData && !loading && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Primera fila - Métricas principales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Ingresos Totales */}
               <Card className="shadow-xl border-0 bg-gradient-to-br from-green-500 to-green-600 text-white">
                 <CardContent className="p-6">
@@ -247,14 +380,17 @@ export default function DailyReportPage() {
                 </CardContent>
               </Card>
 
-              {/* Egresos Totales */}
+              {/* Gastos Totales */}
               <Card className="shadow-xl border-0 bg-gradient-to-br from-red-500 to-red-600 text-white">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm opacity-90">Egresos Totales</p>
+                      <p className="text-sm opacity-90">Gastos Totales</p>
                       <p className="text-2xl font-bold mt-1">
                         {formatCurrency(reportData.gastos)}
+                      </p>
+                      <p className="text-xs opacity-80 mt-1">
+                        {sessionsData.length} sesión(es)
                       </p>
                     </div>
                     <TrendingDown className="w-12 h-12 opacity-80" />
@@ -262,12 +398,12 @@ export default function DailyReportPage() {
                 </CardContent>
               </Card>
 
-              {/* Jackpots Totales */}
+              {/* Jackpots Ganados */}
               <Card className="shadow-xl border-0 bg-gradient-to-br from-yellow-500 to-yellow-600 text-white">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm opacity-90">Jackpots</p>
+                      <p className="text-sm opacity-90">Jackpots Ganados</p>
                       <p className="text-2xl font-bold mt-1">
                         {formatCurrency(
                           reportData.jackpot_wins.reduce((sum, j) => sum + j.sum, 0)
@@ -282,12 +418,12 @@ export default function DailyReportPage() {
                 </CardContent>
               </Card>
 
-              {/* Bonos Totales */}
+              {/* Bonos Otorgados */}
               <Card className="shadow-xl border-0 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm opacity-90">Bonos</p>
+                      <p className="text-sm opacity-90">Bonos Otorgados</p>
                       <p className="text-2xl font-bold mt-1">
                         {formatCurrency(
                           reportData.bonos.reduce((sum, b) => sum + b.sum, 0)
@@ -298,6 +434,27 @@ export default function DailyReportPage() {
                       </p>
                     </div>
                     <Calculator className="w-12 h-12 opacity-80" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Egresos (Jackpots + Bonos) */}
+              <Card className="shadow-xl border-0 bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm opacity-90">Egresos</p>
+                      <p className="text-2xl font-bold mt-1">
+                        {formatCurrency(
+                          reportData.jackpot_wins.reduce((sum, j) => sum + j.sum, 0) +
+                          reportData.bonos.reduce((sum, b) => sum + b.sum, 0)
+                        )}
+                      </p>
+                      <p className="text-xs opacity-80 mt-1">
+                        J + B
+                      </p>
+                    </div>
+                    <TrendingDown className="w-12 h-12 opacity-80" />
                   </div>
                 </CardContent>
               </Card>
@@ -331,26 +488,261 @@ export default function DailyReportPage() {
               </CardContent>
             </Card>
 
+            {/* Jackpots Ganados - Detalle */}
+            <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+              <CardHeader 
+                className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-t-lg cursor-pointer hover:from-yellow-600 hover:to-yellow-700 transition-all"
+                onClick={() => setIsJackpotsExpanded(!isJackpotsExpanded)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold">
+                    Jackpots Ganados ({jackpotsData.length}) - {formatCurrency(jackpotsData.reduce((sum, j) => sum + j.value, 0))}
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsJackpotsExpanded(!isJackpotsExpanded)
+                    }}
+                  >
+                    {isJackpotsExpanded ? (
+                      <ChevronUp className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              {isJackpotsExpanded && (
+                <CardContent className="p-6">
+                  {jackpotsData.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">
+                      No hay jackpots ganados en este día
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {jackpotsData.map((jackpot, index) => (
+                        <div
+                          key={jackpot.id}
+                          className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border-2 border-yellow-200 dark:border-yellow-800"
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="bg-yellow-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-sm shrink-0">
+                              {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-semibold text-gray-800 dark:text-white truncate">
+                                {jackpot.user_name || "Usuario desconocido"}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Hora: {formatTime(jackpot.created_at)}
+                              </p>
+                              {jackpot.winner_hand && (
+                                <p className="text-xs text-gray-500 dark:text-gray-500">
+                                  Mano: {jackpot.winner_hand}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right ml-4">
+                            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
+                              {formatCurrency(jackpot.value)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="mt-4 pt-4 border-t-2 border-yellow-200 dark:border-yellow-800">
+                        <div className="flex justify-between items-center">
+                          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                            Total Jackpots:
+                          </p>
+                          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                            {formatCurrency(jackpotsData.reduce((sum, j) => sum + j.value, 0))}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Bonos Otorgados - Detalle */}
+            <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+              <CardHeader 
+                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all"
+                onClick={() => setIsBonosExpanded(!isBonosExpanded)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold">
+                    Bonos Otorgados ({bonosData.length}) - {formatCurrency(bonosData.reduce((sum, b) => sum + b.value, 0))}
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsBonosExpanded(!isBonosExpanded)
+                    }}
+                  >
+                    {isBonosExpanded ? (
+                      <ChevronUp className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+              {isBonosExpanded && (
+                <CardContent className="p-6">
+                  {bonosData.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">
+                      No hay bonos otorgados en este día
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {bonosData.map((bono, index) => (
+                        <div
+                          key={bono.id}
+                          className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border-2 border-blue-200 dark:border-blue-800"
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-sm shrink-0">
+                              {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-semibold text-gray-800 dark:text-white truncate">
+                                {bono.user_name || "Usuario desconocido"}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Hora: {formatTime(bono.created_at)}
+                              </p>
+                              {bono.comment && (
+                                <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                  {bono.comment}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right ml-4">
+                            <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                              {formatCurrency(bono.value)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="mt-4 pt-4 border-t-2 border-blue-200 dark:border-blue-800">
+                        <div className="flex justify-between items-center">
+                          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                            Total Bonos:
+                          </p>
+                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                            {formatCurrency(bonosData.reduce((sum, b) => sum + b.value, 0))}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+
             {/* Sesiones del día */}
             <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg">
-                <CardTitle className="text-xl font-semibold">
-                  Sesiones del Día ({sessionsData.length})
-                </CardTitle>
+              <CardHeader 
+                className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg cursor-pointer hover:from-indigo-600 hover:to-purple-700 transition-all"
+                onClick={() => setIsSessionsExpanded(!isSessionsExpanded)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold">
+                    Sesiones del Día ({sessionsData.length})
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsSessionsExpanded(!isSessionsExpanded)
+                    }}
+                  >
+                    {isSessionsExpanded ? (
+                      <ChevronUp className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="p-6">
-                {sessionsData.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">
-                    No hay sesiones registradas para este día
-                  </p>
-                ) : (
-                  <div className="space-y-4">
+              {isSessionsExpanded && (
+                <CardContent className="p-6">
+                  {sessionsData.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">
+                      No hay sesiones registradas para este día
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
                     {sessionsData.map((session) => (
                       <Card
                         key={session.id}
                         className="border-2 border-gray-200 dark:border-gray-700"
                       >
                         <CardContent className="p-4">
+                          {/* Estado y botón de editar sesión */}
+                          <div className="flex justify-between items-center mb-4">
+                            {/* Badge de estado */}
+                            <div>
+                              {session.is_active ? (
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-300 dark:border-green-700">
+                                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                                  Abierto
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-300 dark:border-red-700">
+                                  <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                                  Terminado
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Botón de editar (solo para sesiones terminadas) */}
+                            <div>
+                              {!session.is_active && (
+                                editingSessionData !== session.id ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => startEditingSession(session)}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                    Editar Datos
+                                  </Button>
+                                ) : editingSessionData === session.id ? (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => updateSessionData(session.id)}
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      Guardar Cambios
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={cancelEditingSession}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                  </div>
+                                ) : null
+                              )}
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -374,21 +766,57 @@ export default function DailyReportPage() {
                               <p className="text-sm text-gray-600 dark:text-gray-400">
                                 Reik
                               </p>
-                              <p className="font-medium">{formatCurrency(session.reik)}</p>
+                              {editingSessionData === session.id ? (
+                                <Input
+                                  type="number"
+                                  value={editFormData.reik}
+                                  onChange={(e) =>
+                                    setEditFormData({ ...editFormData, reik: Number(e.target.value) })
+                                  }
+                                  className="mt-1"
+                                  min="0"
+                                />
+                              ) : (
+                                <p className="font-medium">{formatCurrency(session.reik)}</p>
+                              )}
                             </div>
                             <div>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
                                 Jackpot
                               </p>
-                              <p className="font-medium">
-                                {formatCurrency(session.jackpot)}
-                              </p>
+                              {editingSessionData === session.id ? (
+                                <Input
+                                  type="number"
+                                  value={editFormData.jackpot}
+                                  onChange={(e) =>
+                                    setEditFormData({ ...editFormData, jackpot: Number(e.target.value) })
+                                  }
+                                  className="mt-1"
+                                  min="0"
+                                />
+                              ) : (
+                                <p className="font-medium">
+                                  {formatCurrency(session.jackpot)}
+                                </p>
+                              )}
                             </div>
                             <div>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Tips
+                                Tips (Propinas)
                               </p>
-                              <p className="font-medium">{formatCurrency(session.tips)}</p>
+                              {editingSessionData === session.id ? (
+                                <Input
+                                  type="number"
+                                  value={editFormData.tips}
+                                  onChange={(e) =>
+                                    setEditFormData({ ...editFormData, tips: Number(e.target.value) })
+                                  }
+                                  className="mt-1"
+                                  min="0"
+                                />
+                              ) : (
+                                <p className="font-medium">{formatCurrency(session.tips)}</p>
+                              )}
                             </div>
                             <div>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -462,9 +890,10 @@ export default function DailyReportPage() {
                         </CardContent>
                       </Card>
                     ))}
-                  </div>
-                )}
-              </CardContent>
+                    </div>
+                  )}
+                </CardContent>
+              )}
             </Card>
           </>
         )}
@@ -480,6 +909,23 @@ export default function DailyReportPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Footer */}
+        <footer className="mt-8 bg-gradient-to-r from-gray-800 to-gray-900 dark:from-gray-900 dark:to-black rounded-lg shadow-2xl" style={{ height: '300px' }}>
+          <div className="h-full flex flex-col items-center justify-center text-white p-8">
+            <div className="text-center space-y-4">
+              <h3 className="text-2xl font-bold">Sistema de Gestión </h3>
+              <div className="w-20 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
+              <p className="text-gray-300 text-lg">
+                © {new Date().getFullYear()} Todos los derechos reservados
+              </p>
+              <p className="text-gray-400 text-sm max-w-2xl mx-auto">
+                Este sistema es de uso exclusivo para la administración y gestión .
+                Cualquier uso no autorizado está prohibido.
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   )
