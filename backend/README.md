@@ -300,6 +300,51 @@ python examples/test_auth.py
 - `skip`: int (default: 0)
 - `limit`: int (default: 100)
 
+#### `GET /api/v1/users/search/by-username`
+**Descripción**: Buscar usuarios por nombre de usuario (username)  
+**Permisos**: Usuario autenticado  
+**Query Parameters**:
+- `q`: string (texto a buscar)
+
+**Características**:
+- Búsqueda parcial: "tiago" encuentra "santiago", "aul" encuentra "Paul"
+- Case insensitive: no distingue mayúsculas y minúsculas
+- Busca entre todos los usuarios sin importar su rol
+
+**Response**:
+```json
+{
+  "users": [
+    {
+      "id": "string",
+      "username": "string",
+      "name": "string",
+      "roles": ["USER", "DEALER", "MANAGER", "ADMIN"],
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "security": {
+        "failed_attempts": 0
+      }
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 1
+}
+```
+
+**Ejemplo de uso**:
+```bash
+# Buscar usuarios con "tiago" en su username
+curl -X GET "http://localhost:8000/api/v1/users/search/by-username?q=tiago" \
+  -H "Authorization: Bearer {tu_token}"
+
+# Buscar usuarios con "aul" en su username (encontrará "paul", "Paul", "Paula", etc.)
+curl -X GET "http://localhost:8000/api/v1/users/search/by-username?q=aul" \
+  -H "Authorization: Bearer {tu_token}"
+```
+
 #### `PUT /api/v1/users/{user_id}`
 **Descripción**: Actualizar usuario  
 **Permisos**: El mismo usuario o Admin  
