@@ -6,6 +6,15 @@ import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { DealerSession } from "@/components/dealer-session"
 import { UserMenu } from "@/components/user-menu"
 import { AdminNavigation } from "@/components/admin-navigation"
@@ -40,6 +49,29 @@ interface Transaction {
   signed_amount: number
 }
 
+interface Bono {
+  id: string
+  user_id: string
+  session_id: string
+  value: number
+  comment: string
+  created_at: string
+  updated_at: string
+  type: "BONO" // Para distinguir en la UI
+}
+
+interface JackpotPrice {
+  id: string
+  user_id: string
+  session_id: string
+  value: number
+  winner_hand: string
+  comment: string
+  created_at: string
+  updated_at: string
+  type: "JACKPOT" // Para distinguir en la UI
+}
+
 interface UserSearchResult {
   id: string
   username: string
@@ -56,6 +88,8 @@ interface Player {
   searchResults: UserSearchResult[]
   showSearchResults: boolean
   transactions: Transaction[]
+  bonos: Bono[]
+  jackpots: JackpotPrice[]
   borderColor: string
 }
 
@@ -66,6 +100,16 @@ export default function PlayerPerformanceTracker() {
   const [isCheckingSession, setIsCheckingSession] = useState(true)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  
+  // Estados para modales de bono y jackpot
+  const [showBonoModal, setShowBonoModal] = useState(false)
+  const [showJackpotModal, setShowJackpotModal] = useState(false)
+  const [selectedPlayerForBono, setSelectedPlayerForBono] = useState<string | null>(null)
+  const [bonoAmount, setBonoAmount] = useState<number>(0)
+  const [bonoComment, setBonoComment] = useState<string>("")
+  const [jackpotAmount, setJackpotAmount] = useState<number>(0)
+  const [jackpotComment, setJackpotComment] = useState<string>("")
+  const [winnerHand, setWinnerHand] = useState<string>("")
 
   // Función para generar un color aleatorio para el borde
   const generateRandomBorderColor = () => {
@@ -93,57 +137,101 @@ export default function PlayerPerformanceTracker() {
       searchResults: [],
       showSearchResults: false,
       transactions: [],
+      bonos: [],
+      jackpots: [],
       borderColor: generateRandomBorderColor(),
     },
   ])
 
   // Verificar si hay una sesión activa y cargar transacciones
   useEffect(() => {
-    // Cargar transacciones de una sesión
+    // Cargar transacciones, bonos y jackpots de una sesión
     const loadTransactionsForSession = async (sessionId: string) => {
       try {
-        const response = await api.get(`/api/v1/transactions/session/${sessionId}`)
+        // Cargar transacciones
+        let transactions: Transaction[] = []
+        try {
+          const transactionsResponse = await api.get(`/api/v1/transactions/session/${sessionId}`)
+          transactions = transactionsResponse.transactions || []
+        } catch (error) {
+          console.error('Error al cargar transacciones:', error)
+        }
         
-        if (response.transactions && response.transactions.length > 0) {
-          // Agrupar transacciones por usuario
-          const transactionsByUser = new Map<string, Transaction[]>()
-          
-          for (const transaction of response.transactions) {
-            if (!transactionsByUser.has(transaction.user_id)) {
-              transactionsByUser.set(transaction.user_id, [])
-            }
-            transactionsByUser.get(transaction.user_id)!.push(transaction)
+        // Cargar bonos (puede fallar si el endpoint no existe)
+        let bonos: any[] = []
+        try {
+          const bonosResponse = await api.get(`/api/v1/bonos/session/${sessionId}`)
+          bonos = bonosResponse.bonos || []
+        } catch (error) {
+          console.warn('No se pudieron cargar bonos (endpoint podría no existir):', error)
+        }
+        
+        // Cargar jackpots (puede fallar si el endpoint no existe)
+        let jackpots: any[] = []
+        try {
+          const jackpotsResponse = await api.get(`/api/v1/jackpot-prices/session/${sessionId}`)
+          jackpots = jackpotsResponse.jackpot_prices || []
+        } catch (error) {
+          console.warn('No se pudieron cargar jackpots (endpoint podría no existir):', error)
+        }
+        
+        // Agrupar por usuario
+        const dataByUser = new Map<string, { transactions: Transaction[], bonos: Bono[], jackpots: JackpotPrice[] }>()
+        
+        // Agregar transacciones
+        for (const transaction of transactions) {
+          if (!dataByUser.has(transaction.user_id)) {
+            dataByUser.set(transaction.user_id, { transactions: [], bonos: [], jackpots: [] })
           }
-          
-          // Crear jugadores con sus transacciones
-          const loadedPlayers: Player[] = []
-          let playerId = 1
-          
-          for (const [userId, transactions] of transactionsByUser.entries()) {
-            // Obtener información del usuario
-            try {
-              const userResponse = await api.get(`/api/v1/users/${userId}`)
-              loadedPlayers.push({
-                id: playerId++,
-                name: userResponse.name || "",
-                userId: userId,
-                searchQuery: userResponse.name || "",
-                searchResults: [],
-                showSearchResults: false,
-                transactions: transactions,
-                borderColor: generateRandomBorderColor(),
-              })
-            } catch (error) {
-              console.error('Error al cargar usuario:', error)
-            }
+          dataByUser.get(transaction.user_id)!.transactions.push(transaction)
+        }
+        
+        // Agregar bonos
+        for (const bono of bonos) {
+          if (!dataByUser.has(bono.user_id)) {
+            dataByUser.set(bono.user_id, { transactions: [], bonos: [], jackpots: [] })
           }
-          
-          if (loadedPlayers.length > 0) {
-            setPlayers(loadedPlayers)
+          dataByUser.get(bono.user_id)!.bonos.push({ ...bono, type: "BONO" as const })
+        }
+        
+        // Agregar jackpots
+        for (const jackpot of jackpots) {
+          if (!dataByUser.has(jackpot.user_id)) {
+            dataByUser.set(jackpot.user_id, { transactions: [], bonos: [], jackpots: [] })
+          }
+          dataByUser.get(jackpot.user_id)!.jackpots.push({ ...jackpot, type: "JACKPOT" as const })
+        }
+        
+        // Crear jugadores con sus datos
+        const loadedPlayers: Player[] = []
+        let playerId = 1
+        
+        for (const [userId, data] of dataByUser.entries()) {
+          // Obtener información del usuario
+          try {
+            const userResponse = await api.get(`/api/v1/users/${userId}`)
+            loadedPlayers.push({
+              id: playerId++,
+              name: userResponse.name || "",
+              userId: userId,
+              searchQuery: userResponse.name || "",
+              searchResults: [],
+              showSearchResults: false,
+              transactions: data.transactions,
+              bonos: data.bonos,
+              jackpots: data.jackpots,
+              borderColor: generateRandomBorderColor(),
+            })
+          } catch (error) {
+            console.error('Error al cargar usuario:', error)
           }
         }
+        
+        if (loadedPlayers.length > 0) {
+          setPlayers(loadedPlayers)
+        }
       } catch (error) {
-        console.error('Error al cargar transacciones:', error)
+        console.error('Error al cargar datos de la sesión:', error)
       }
     }
 
@@ -400,6 +488,188 @@ export default function PlayerPerformanceTracker() {
     }
   }
 
+  // Agregar bono
+  const addBono = async () => {
+    if (!selectedPlayerForBono || !activeSessionId) return
+    
+    try {
+      const newBono = {
+        user_id: selectedPlayerForBono,
+        session_id: activeSessionId,
+        value: bonoAmount,
+        comment: bonoComment,
+      }
+      
+      const response = await api.post('/api/v1/bonos', newBono)
+      
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.userId === selectedPlayerForBono
+            ? { ...p, bonos: [...p.bonos, { ...response, type: "BONO" as const }] }
+            : p
+        )
+      )
+      
+      // Cerrar modal y limpiar campos
+      setShowBonoModal(false)
+      setSelectedPlayerForBono(null)
+      setBonoAmount(0)
+      setBonoComment("")
+    } catch (error) {
+      console.error('Error al crear bono:', error)
+      alert('Error al crear bono')
+    }
+  }
+
+  // Actualizar bono
+  const updateBono = async (playerId: number, bonoId: string, field: keyof Bono, value: any) => {
+    const player = players.find((p) => p.id === playerId)
+    if (!player) return
+
+    // Actualizar localmente primero
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              bonos: p.bonos.map((b) =>
+                b.id === bonoId ? { ...b, [field]: value } : b
+              ),
+            }
+          : p
+      )
+    )
+
+    // Actualizar en el backend
+    try {
+      const updateData: any = {}
+      if (field === 'value') {
+        updateData.value = value
+      } else if (field === 'comment') {
+        updateData.comment = value
+      }
+
+      await api.put(`/api/v1/bonos/${bonoId}`, updateData)
+    } catch (error) {
+      console.error('Error al actualizar bono:', error)
+      alert('Error al actualizar bono')
+    }
+  }
+
+  // Eliminar bono
+  const removeBono = async (playerId: number, bonoId: string) => {
+    try {
+      await api.delete(`/api/v1/bonos/${bonoId}`)
+      
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === playerId
+            ? {
+                ...player,
+                bonos: player.bonos.filter((b) => b.id !== bonoId),
+              }
+            : player
+        )
+      )
+    } catch (error) {
+      console.error('Error al eliminar bono:', error)
+      alert('Error al eliminar bono')
+    }
+  }
+
+  // Agregar jackpot
+  const addJackpot = async () => {
+    if (!selectedPlayerForBono || !activeSessionId) return
+    
+    try {
+      const newJackpot = {
+        user_id: selectedPlayerForBono,
+        session_id: activeSessionId,
+        value: jackpotAmount,
+        winner_hand: winnerHand,
+        comment: jackpotComment,
+      }
+      
+      const response = await api.post('/api/v1/jackpot-prices', newJackpot)
+      
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.userId === selectedPlayerForBono
+            ? { ...p, jackpots: [...p.jackpots, { ...response, type: "JACKPOT" as const }] }
+            : p
+        )
+      )
+      
+      // Cerrar modal y limpiar campos
+      setShowJackpotModal(false)
+      setSelectedPlayerForBono(null)
+      setJackpotAmount(0)
+      setJackpotComment("")
+      setWinnerHand("")
+    } catch (error) {
+      console.error('Error al crear jackpot:', error)
+      alert('Error al crear jackpot')
+    }
+  }
+
+  // Actualizar jackpot
+  const updateJackpot = async (playerId: number, jackpotId: string, field: keyof JackpotPrice, value: any) => {
+    const player = players.find((p) => p.id === playerId)
+    if (!player) return
+
+    // Actualizar localmente primero
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              jackpots: p.jackpots.map((j) =>
+                j.id === jackpotId ? { ...j, [field]: value } : j
+              ),
+            }
+          : p
+      )
+    )
+
+    // Actualizar en el backend
+    try {
+      const updateData: any = {}
+      if (field === 'value') {
+        updateData.value = value
+      } else if (field === 'comment') {
+        updateData.comment = value
+      } else if (field === 'winner_hand') {
+        updateData.winner_hand = value
+      }
+
+      await api.put(`/api/v1/jackpot-prices/${jackpotId}`, updateData)
+    } catch (error) {
+      console.error('Error al actualizar jackpot:', error)
+      alert('Error al actualizar jackpot')
+    }
+  }
+
+  // Eliminar jackpot
+  const removeJackpot = async (playerId: number, jackpotId: string) => {
+    try {
+      await api.delete(`/api/v1/jackpot-prices/${jackpotId}`)
+      
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === playerId
+            ? {
+                ...player,
+                jackpots: player.jackpots.filter((j) => j.id !== jackpotId),
+              }
+            : player
+        )
+      )
+    } catch (error) {
+      console.error('Error al eliminar jackpot:', error)
+      alert('Error al eliminar jackpot')
+    }
+  }
+
   const addNewPlayer = () => {
     const newPlayerId = Math.max(...players.map((p) => p.id)) + 1
     setPlayers((prev) => [
@@ -412,6 +682,8 @@ export default function PlayerPerformanceTracker() {
         searchResults: [],
         showSearchResults: false,
         transactions: [],
+        bonos: [],
+        jackpots: [],
         borderColor: generateRandomBorderColor(),
       },
     ])
@@ -450,7 +722,7 @@ export default function PlayerPerformanceTracker() {
   }
 
   const getPlayerTotals = (player: Player) => {
-    return player.transactions.reduce(
+    const transactionTotals = player.transactions.reduce(
       (acc, transaction) => {
         const balance = calculateBalance(transaction.cantidad, transaction.operation_type)
         const cashIn = transaction.operation_type === "CASH IN" ? transaction.cantidad : 0
@@ -464,6 +736,23 @@ export default function PlayerPerformanceTracker() {
       },
       { cashIn: 0, cashOut: 0, balance: 0, transactions: 0 },
     )
+    
+    // Agregar bonos al balance (suma positiva)
+    const bonosTotal = player.bonos.reduce((sum, bono) => sum + bono.value, 0)
+    
+    // Agregar jackpots al balance (suma positiva)
+    const jackpotsTotal = player.jackpots.reduce((sum, jackpot) => sum + jackpot.value, 0)
+    
+    return {
+      cashIn: transactionTotals.cashIn,
+      cashOut: transactionTotals.cashOut,
+      balance: transactionTotals.balance + bonosTotal + jackpotsTotal,
+      transactions: transactionTotals.transactions,
+      bonos: player.bonos.length,
+      jackpots: player.jackpots.length,
+      bonosTotal,
+      jackpotsTotal,
+    }
   }
 
   const grandTotals = players.reduce(
@@ -490,6 +779,8 @@ export default function PlayerPerformanceTracker() {
         searchResults: [],
         showSearchResults: false,
         transactions: [],
+        bonos: [],
+        jackpots: [],
         borderColor: generateRandomBorderColor(),
       },
     ])
@@ -515,13 +806,36 @@ export default function PlayerPerformanceTracker() {
   }
 
   const resetDay = async () => {
-    // Eliminar todas las transacciones
+    // Eliminar todas las transacciones, bonos y jackpots
     for (const player of players) {
+      // Eliminar transacciones
       for (const transaction of player.transactions) {
         try {
           await api.delete(`/api/v1/transactions/${transaction.id}`)
         } catch (error) {
           console.error('Error al eliminar transacción:', error)
+        }
+      }
+      
+      // Eliminar bonos (si existen)
+      if (player.bonos && player.bonos.length > 0) {
+        for (const bono of player.bonos) {
+          try {
+            await api.delete(`/api/v1/bonos/${bono.id}`)
+          } catch (error) {
+            console.warn('Error al eliminar bono (endpoint podría no existir):', error)
+          }
+        }
+      }
+      
+      // Eliminar jackpots (si existen)
+      if (player.jackpots && player.jackpots.length > 0) {
+        for (const jackpot of player.jackpots) {
+          try {
+            await api.delete(`/api/v1/jackpot-prices/${jackpot.id}`)
+          } catch (error) {
+            console.warn('Error al eliminar jackpot (endpoint podría no existir):', error)
+          }
         }
       }
     }
@@ -535,6 +849,8 @@ export default function PlayerPerformanceTracker() {
         searchResults: [],
         showSearchResults: false,
         transactions: [],
+        bonos: [],
+        jackpots: [],
         borderColor: generateRandomBorderColor(),
       },
     ])
@@ -606,15 +922,35 @@ export default function PlayerPerformanceTracker() {
             <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <CardTitle className="text-lg sm:text-xl font-semibold">Registro de Jugadores y Transacciones</CardTitle>
-                <Button
-                  onClick={addNewPlayer}
-                  variant="secondary"
-                  size="sm"
-                  className="bg-white/20 hover:bg-white/30 text-white border-white/30 w-full sm:w-auto"
-                >
-                  <UserPlus className="w-4 h-4 mr-1" />
-                  Nuevo Jugador
-                </Button>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                  <Button
+                    onClick={addNewPlayer}
+                    variant="secondary"
+                    size="sm"
+                    className="bg-white/20 hover:bg-white/30 text-white border-white/30 flex-1 sm:flex-none"
+                  >
+                    <UserPlus className="w-4 h-4 mr-1" />
+                    Nuevo Jugador
+                  </Button>
+                  <Button
+                    onClick={() => setShowBonoModal(true)}
+                    variant="secondary"
+                    size="sm"
+                    className="bg-green-500/80 hover:bg-green-600/80 text-white border-white/30 flex-1 sm:flex-none"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Agregar Bono
+                  </Button>
+                  <Button
+                    onClick={() => setShowJackpotModal(true)}
+                    variant="secondary"
+                    size="sm"
+                    className="bg-yellow-500/80 hover:bg-yellow-600/80 text-white border-white/30 flex-1 sm:flex-none"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Agregar Jackpot
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0" style={{ overflow: 'visible' }}>
@@ -786,9 +1122,12 @@ export default function PlayerPerformanceTracker() {
                                   )
                                 })()}
                                 
-                                {player.transactions.length > 0 && (
+                                {(player.transactions.length > 0 || player.bonos.length > 0 || player.jackpots.length > 0) && (
                                   <div className="text-xs text-gray-500 mt-1">
-                                    {player.transactions.length} Transacción(es) - Total: {formatCurrency(playerTotals.balance)}
+                                    {player.transactions.length} Trans. 
+                                    {player.bonos.length > 0 && ` | ${player.bonos.length} Bono(s)`}
+                                    {player.jackpots.length > 0 && ` | ${player.jackpots.length} Jackpot(s)`}
+                                    {' - Total: '}{formatCurrency(playerTotals.balance)}
                                   </div>
                                 )}
                               </div>
@@ -909,6 +1248,129 @@ export default function PlayerPerformanceTracker() {
                             </tr>
                           )
                         })}
+                        
+                        {/* Filas de bonos */}
+                        {player.bonos.map((bono, bonoIndex) => {
+                          return (
+                            <tr
+                              key={`${player.id}-bono-${bono.id}`}
+                              className="border-b border-gray-100 dark:border-gray-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors bg-green-50/30 dark:bg-green-900/10"
+                            >
+                              <td className="px-4 py-3 w-[30%] min-w-[200px]">
+                                <div className="pl-4 text-sm font-medium text-green-600 dark:text-green-400">
+                                  🎁 Bono {bonoIndex + 1}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 w-[15%] min-w-[100px]">
+                                <Input
+                                  type="number"
+                                  step="1000"
+                                  placeholder="0"
+                                  value={bono.value || ""}
+                                  onChange={(e) =>
+                                    updateBono(player.id, bono.id, "value", Number.parseFloat(e.target.value) || 0)
+                                  }
+                                  className="border-green-300 dark:border-green-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                />
+                              </td>
+                              <td className="px-4 py-3 w-[12%] min-w-[80px]">
+                                <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                                  BONO
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 w-[15%] min-w-[110px]">
+                                <span className="text-sm text-gray-500">-</span>
+                              </td>
+                              <td className="px-4 py-3 w-[12%] min-w-[80px]">
+                                <div className="px-3 py-2 rounded-lg font-medium text-sm bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  {formatCurrency(bono.value)}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 w-[16%] min-w-[120px]">
+                                <Input
+                                  placeholder="Comentario del bono"
+                                  value={bono.comment || ""}
+                                  onChange={(e) => updateBono(player.id, bono.id, "comment", e.target.value)}
+                                  className="border-green-300 dark:border-green-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center w-[5%] min-w-[60px]">
+                                <Button
+                                  onClick={() => removeBono(player.id, bono.id)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                        
+                        {/* Filas de jackpots */}
+                        {player.jackpots.map((jackpot, jackpotIndex) => {
+                          return (
+                            <tr
+                              key={`${player.id}-jackpot-${jackpot.id}`}
+                              className="border-b border-gray-100 dark:border-gray-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors bg-yellow-50/30 dark:bg-yellow-900/10"
+                            >
+                              <td className="px-4 py-3 w-[30%] min-w-[200px]">
+                                <div className="pl-4 text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                                  🏆 Jackpot {jackpotIndex + 1}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 w-[15%] min-w-[100px]">
+                                <Input
+                                  type="number"
+                                  step="1000"
+                                  placeholder="0"
+                                  value={jackpot.value || ""}
+                                  onChange={(e) =>
+                                    updateJackpot(player.id, jackpot.id, "value", Number.parseFloat(e.target.value) || 0)
+                                  }
+                                  className="border-yellow-300 dark:border-yellow-600 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                                />
+                              </td>
+                              <td className="px-4 py-3 w-[12%] min-w-[80px]">
+                                <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                                  JACKPOT
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 w-[15%] min-w-[110px]">
+                                <Input
+                                  placeholder="Mano ganadora"
+                                  value={jackpot.winner_hand || ""}
+                                  onChange={(e) => updateJackpot(player.id, jackpot.id, "winner_hand", e.target.value)}
+                                  className="border-yellow-300 dark:border-yellow-600 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-3 w-[12%] min-w-[80px]">
+                                <div className="px-3 py-2 rounded-lg font-medium text-sm bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                  {formatCurrency(jackpot.value)}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 w-[16%] min-w-[120px]">
+                                <Input
+                                  placeholder="Comentario del jackpot"
+                                  value={jackpot.comment || ""}
+                                  onChange={(e) => updateJackpot(player.id, jackpot.id, "comment", e.target.value)}
+                                  className="border-yellow-300 dark:border-yellow-600 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center w-[5%] min-w-[60px]">
+                                <Button
+                                  onClick={() => removeJackpot(player.id, jackpot.id)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </React.Fragment>
                     )
                   })}
@@ -953,8 +1415,24 @@ export default function PlayerPerformanceTracker() {
                               {formatCurrency(totals.cashOut)}
                             </span>
                           </div>
+                          {totals.bonos > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-green-600 dark:text-green-400">🎁 Bonos ({totals.bonos}):</span>
+                              <span className="font-medium text-green-700 dark:text-green-300">
+                                {formatCurrency(totals.bonosTotal)}
+                              </span>
+                            </div>
+                          )}
+                          {totals.jackpots > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-yellow-600 dark:text-yellow-400">🏆 Jackpots ({totals.jackpots}):</span>
+                              <span className="font-medium text-yellow-700 dark:text-yellow-300">
+                                {formatCurrency(totals.jackpotsTotal)}
+                              </span>
+                            </div>
+                          )}
                           <div className="flex justify-between border-t pt-2">
-                            <span className="text-blue-600 dark:text-blue-400 font-medium">Balance:</span>
+                            <span className="text-blue-600 dark:text-blue-400 font-medium">Balance Total:</span>
                             <span
                               className={`font-bold ${totals.balance >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}
                             >
@@ -1017,6 +1495,165 @@ export default function PlayerPerformanceTracker() {
           </Card>
         </div>
         )}
+
+        {/* Modal para agregar bono */}
+        <Dialog open={showBonoModal} onOpenChange={setShowBonoModal}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Agregar Bono</DialogTitle>
+              <DialogDescription>
+                Selecciona un jugador y especifica la cantidad y comentario del bono.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="player-select">Jugador</Label>
+                <select
+                  id="player-select"
+                  value={selectedPlayerForBono || ""}
+                  onChange={(e) => setSelectedPlayerForBono(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
+                >
+                  <option value="">Selecciona un jugador</option>
+                  {players
+                    .filter((p) => p.userId !== null)
+                    .map((player) => (
+                      <option key={player.id} value={player.userId!}>
+                        {player.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="bono-amount">Cantidad del Bono</Label>
+                <Input
+                  id="bono-amount"
+                  type="number"
+                  step="1000"
+                  placeholder="0"
+                  value={bonoAmount || ""}
+                  onChange={(e) => setBonoAmount(Number.parseFloat(e.target.value) || 0)}
+                  className="border-gray-300 dark:border-gray-600"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="bono-comment">Comentario</Label>
+                <Input
+                  id="bono-comment"
+                  placeholder="Comentario del bono (opcional)"
+                  value={bonoComment}
+                  onChange={(e) => setBonoComment(e.target.value)}
+                  className="border-gray-300 dark:border-gray-600"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBonoModal(false)
+                  setSelectedPlayerForBono(null)
+                  setBonoAmount(0)
+                  setBonoComment("")
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={addBono}
+                disabled={!selectedPlayerForBono || bonoAmount <= 0}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Agregar Bono
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal para agregar jackpot */}
+        <Dialog open={showJackpotModal} onOpenChange={setShowJackpotModal}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Agregar Jackpot</DialogTitle>
+              <DialogDescription>
+                Selecciona un jugador y especifica la cantidad, mano ganadora y comentario del jackpot.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="jackpot-player-select">Jugador</Label>
+                <select
+                  id="jackpot-player-select"
+                  value={selectedPlayerForBono || ""}
+                  onChange={(e) => setSelectedPlayerForBono(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
+                >
+                  <option value="">Selecciona un jugador</option>
+                  {players
+                    .filter((p) => p.userId !== null)
+                    .map((player) => (
+                      <option key={player.id} value={player.userId!}>
+                        {player.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="jackpot-amount">Cantidad del Jackpot</Label>
+                <Input
+                  id="jackpot-amount"
+                  type="number"
+                  step="1000"
+                  placeholder="0"
+                  value={jackpotAmount || ""}
+                  onChange={(e) => setJackpotAmount(Number.parseFloat(e.target.value) || 0)}
+                  className="border-gray-300 dark:border-gray-600"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="winner-hand">Mano Ganadora</Label>
+                <Input
+                  id="winner-hand"
+                  placeholder="Ej: Royal Flush, Full House, etc."
+                  value={winnerHand}
+                  onChange={(e) => setWinnerHand(e.target.value)}
+                  className="border-gray-300 dark:border-gray-600"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="jackpot-comment">Comentario</Label>
+                <Input
+                  id="jackpot-comment"
+                  placeholder="Comentario del jackpot (opcional)"
+                  value={jackpotComment}
+                  onChange={(e) => setJackpotComment(e.target.value)}
+                  className="border-gray-300 dark:border-gray-600"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowJackpotModal(false)
+                  setSelectedPlayerForBono(null)
+                  setJackpotAmount(0)
+                  setJackpotComment("")
+                  setWinnerHand("")
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={addJackpot}
+                disabled={!selectedPlayerForBono || !winnerHand}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                Agregar Jackpot
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
       </div>
     </div>
