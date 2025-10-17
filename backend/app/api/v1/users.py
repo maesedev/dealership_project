@@ -247,6 +247,43 @@ async def get_user_stats(
     return UserStatsSchema(**stats)
 
 
+@router.get("/search/by-username", response_model=UserListResponseSchema)
+async def search_users_by_username(
+    q: str,
+    current_user: UserDomain = Depends(get_current_active_user),
+    user_service: UserService = Depends(get_user_service)
+):
+    """
+    Buscar usuarios por nombre de usuario (username).
+    
+    Características:
+    - Búsqueda parcial: "tia" encuentra "tantia", "aul" encuentra "Saul"
+    - Case insensitive: no distingue mayúsculas y minúsculas
+    - Busca entre todos los usuarios sin importar su rol
+    
+    Parámetros:
+    - q: texto a buscar en el username
+    
+    Requiere autenticación.
+    """
+    if not q or len(q.strip()) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El parámetro de búsqueda 'q' no puede estar vacío"
+        )
+    
+    users = await user_service.search_users_by_username(q.strip())
+    
+    user_responses = [UserResponseSchema(**user.dict()) for user in users]
+    
+    return UserListResponseSchema(
+        users=user_responses,
+        total=len(user_responses),
+        page=1,
+        limit=len(user_responses)
+    )
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
