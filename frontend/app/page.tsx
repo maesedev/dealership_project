@@ -567,25 +567,36 @@ export default function PlayerPerformanceTracker() {
         )}
 
         {/* Main Table - Solo mostrar si hay sesión activa */}
-        {hasActiveSession && (
-          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm" style={{ overflow: 'visible' }}>
-          <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <CardTitle className="text-lg sm:text-xl font-semibold">Registro de Jugadores y Transacciones</CardTitle>
-              <Button
-                onClick={addNewPlayer}
-                variant="secondary"
-                size="sm"
-                className="bg-white/20 hover:bg-white/30 text-white border-white/30 w-full sm:w-auto"
-              >
-                <UserPlus className="w-4 h-4 mr-1" />
-                Nuevo Jugador
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0" style={{ overflow: 'visible' }}>
-            <div className="overflow-x-auto" style={{ overflowY: 'visible', position: 'relative' }}>
-              <table className="w-full">
+        {hasActiveSession && (() => {
+          // Calcular si hay algún dropdown visible
+          const hasVisibleDropdown = players.some(player => 
+            !player.transactions.length && player.showSearchResults && player.searchQuery.length >= 2
+          )
+          
+          return (
+            <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm" style={{ overflow: 'visible' }}>
+            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <CardTitle className="text-lg sm:text-xl font-semibold">Registro de Jugadores y Transacciones</CardTitle>
+                <Button
+                  onClick={addNewPlayer}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white/20 hover:bg-white/30 text-white border-white/30 w-full sm:w-auto"
+                >
+                  <UserPlus className="w-4 h-4 mr-1" />
+                  Nuevo Jugador
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0" style={{ overflow: 'visible' }}>
+              <div className="overflow-x-auto" style={{ 
+                overflowY: 'visible', 
+                position: 'relative', 
+                minHeight: hasVisibleDropdown ? '400px' : '200px',
+                transition: 'min-height 0.3s ease-in-out'
+              }}>
+                <table className="w-full">
                 <thead className="bg-blue-50 dark:bg-gray-700">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -645,7 +656,7 @@ export default function PlayerPerformanceTracker() {
                         <tr className="border-b border-gray-100 dark:border-gray-600 hover:bg-blue-25 dark:hover:bg-gray-700 transition-colors">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 relative" style={{ zIndex: player.transactions.length > 0 ? 'auto' : 10 }}>
+                              <div className="flex-1 relative">
                                 <div className={`border-2 ${player.borderColor} rounded-lg p-2 ${player.transactions.length > 0 ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
                                   <div className="flex items-center gap-2">
                                     <Search className="w-4 h-4 text-gray-400" />
@@ -678,8 +689,8 @@ export default function PlayerPerformanceTracker() {
                                         top: '100%',
                                         left: 0,
                                         right: 0,
-                                        zIndex: 999999,
-                                        width: '100%'
+                                        width: '100%',
+                                        marginTop: '4px'
                                       }}
                                     >
                                       {player.searchResults.length > 0 ? (
@@ -877,7 +888,8 @@ export default function PlayerPerformanceTracker() {
             </div>
           </CardContent>
         </Card>
-        )}
+          )
+        })()}
 
         {/* Player Summary - Solo mostrar si hay sesión activa */}
         {hasActiveSession && (
