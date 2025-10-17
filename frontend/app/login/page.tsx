@@ -22,8 +22,9 @@ export default function LoginPage() {
 
     try {
       await login(username, password)
-    } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al iniciar sesión. Verifica tus credenciales.'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

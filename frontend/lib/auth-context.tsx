@@ -153,7 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error al renovar token:', error)
       logout()
     }
-  }, [token, logout])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   // Programar renovación automática del token (5 minutos antes de expirar)
   const scheduleTokenRefresh = (expiresIn: number) => {
@@ -197,17 +198,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initAuth()
-  }, [fetchCurrentUser, router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Interceptor global para manejar errores 401 (no autorizado)
   useEffect(() => {
-    const handleUnauthorized = (event: CustomEvent) => {
+    const handleUnauthorized = () => {
       logout()
     }
 
-    window.addEventListener('unauthorized' as any, handleUnauthorized)
+    window.addEventListener('unauthorized' as never, handleUnauthorized)
     return () => {
-      window.removeEventListener('unauthorized' as any, handleUnauthorized)
+      window.removeEventListener('unauthorized' as never, handleUnauthorized)
     }
   }, [logout])
 

@@ -14,7 +14,6 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
-  Shield,
   Search,
   Loader2,
   AlertCircle,
@@ -62,11 +61,13 @@ export default function UsersAdminPage() {
     try {
       setIsLoading(true)
       setError('')
-      const response = await api.get('/api/v1/users?limit=1000')
-      setUsers(response.users || response)
-      setFilteredUsers(response.users || response)
-    } catch (err: any) {
-      setError(err.message || 'Error al cargar usuarios')
+      const response = await api.get<{ users: User[] } | User[]>('/api/v1/users?limit=1000')
+      const usersList = Array.isArray(response) ? response : response.users
+      setUsers(usersList)
+      setFilteredUsers(usersList)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al cargar usuarios'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -111,8 +112,9 @@ export default function UsersAdminPage() {
     try {
       await api.post(`/api/v1/users/${userId}/activate`)
       await loadUsers()
-    } catch (err: any) {
-      alert('Error: ' + err.message)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      alert('Error: ' + errorMessage)
     }
   }
 
@@ -121,8 +123,9 @@ export default function UsersAdminPage() {
     try {
       await api.post(`/api/v1/users/${userId}/deactivate`)
       await loadUsers()
-    } catch (err: any) {
-      alert('Error: ' + err.message)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      alert('Error: ' + errorMessage)
     }
   }
 
@@ -133,8 +136,9 @@ export default function UsersAdminPage() {
     try {
       await api.delete(`/api/v1/users/${userId}`)
       await loadUsers()
-    } catch (err: any) {
-      alert('Error: ' + err.message)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      alert('Error: ' + errorMessage)
     }
   }
 
@@ -462,8 +466,9 @@ function CreateUserModal({
     try {
       await api.post('/api/v1/users/create', formData)
       onSuccess()
-    } catch (err: any) {
-      setError(err.message || 'Error al crear usuario')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear usuario'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -580,8 +585,9 @@ function EditUserModal({
         await api.put(`/api/v1/users/${user.id}/roles`, { roles: formData.roles })
       }
       onSuccess()
-    } catch (err: any) {
-      setError(err.message || 'Error al actualizar usuario')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar usuario'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

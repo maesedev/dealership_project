@@ -23,7 +23,6 @@ import {
   TrendingUp,
   TrendingDown,
   Calculator,
-  RefreshCw,
   MessageSquare,
   Sun,
   Moon,
@@ -151,25 +150,25 @@ export default function PlayerPerformanceTracker() {
         // Cargar transacciones
         let transactions: Transaction[] = []
         try {
-          const transactionsResponse = await api.get(`/api/v1/transactions/session/${sessionId}`)
+          const transactionsResponse = await api.get<{ transactions: Transaction[] }>(`/api/v1/transactions/session/${sessionId}`)
           transactions = transactionsResponse.transactions || []
         } catch (error) {
           console.error('Error al cargar transacciones:', error)
         }
         
         // Cargar bonos (puede fallar si el endpoint no existe)
-        let bonos: any[] = []
+        let bonos: Bono[] = []
         try {
-          const bonosResponse = await api.get(`/api/v1/bonos/session/${sessionId}`)
+          const bonosResponse = await api.get<{ bonos: Bono[] }>(`/api/v1/bonos/session/${sessionId}`)
           bonos = bonosResponse.bonos || []
         } catch (error) {
           console.warn('No se pudieron cargar bonos (endpoint podría no existir):', error)
         }
         
         // Cargar jackpots (puede fallar si el endpoint no existe)
-        let jackpots: any[] = []
+        let jackpots: JackpotPrice[] = []
         try {
-          const jackpotsResponse = await api.get(`/api/v1/jackpot-prices/session/${sessionId}`)
+          const jackpotsResponse = await api.get<{ jackpot_prices: JackpotPrice[] }>(`/api/v1/jackpot-prices/session/${sessionId}`)
           jackpots = jackpotsResponse.jackpot_prices || []
         } catch (error) {
           console.warn('No se pudieron cargar jackpots (endpoint podría no existir):', error)
@@ -209,7 +208,7 @@ export default function PlayerPerformanceTracker() {
         for (const [userId, data] of dataByUser.entries()) {
           // Obtener información del usuario
           try {
-            const userResponse = await api.get(`/api/v1/users/${userId}`)
+            const userResponse = await api.get<{ name: string; id: string }>(`/api/v1/users/${userId}`)
             loadedPlayers.push({
               id: playerId++,
               name: userResponse.name || "",
@@ -242,7 +241,7 @@ export default function PlayerPerformanceTracker() {
       }
 
       try {
-        const response = await api.get(`/api/v1/sessions/active/user/${user.id}`)
+        const response = await api.get<{ sessions: { id: string }[] }>(`/api/v1/sessions/active/user/${user.id}`)
         const hasActive = response.sessions && response.sessions.length > 0
         setHasActiveSession(hasActive)
         
@@ -279,7 +278,7 @@ export default function PlayerPerformanceTracker() {
 
     try {
       console.log('Buscando usuarios con query:', query)
-      const response = await api.get(`/api/v1/users/search/by-username?q=${encodeURIComponent(query)}`)
+      const response = await api.get<{ users: UserSearchResult[] }>(`/api/v1/users/search/by-username?q=${encodeURIComponent(query)}`)
       console.log('Respuesta de búsqueda:', response)
       
       const users = response.users || []
@@ -362,7 +361,7 @@ export default function PlayerPerformanceTracker() {
         roles: ["USER"]
       }
       
-      const response = await api.post('/api/v1/users/create', newUserData)
+      const response = await api.post<UserSearchResult>('/api/v1/users/create', newUserData)
       console.log('Usuario creado:', response)
       
       // Seleccionar el usuario recién creado
@@ -403,7 +402,7 @@ export default function PlayerPerformanceTracker() {
         comment: "",
       }
 
-      const response = await api.post('/api/v1/transactions', newTransaction)
+      const response = await api.post<Transaction>('/api/v1/transactions', newTransaction)
       
       setPlayers((prev) =>
         prev.map((p) =>
@@ -423,7 +422,7 @@ export default function PlayerPerformanceTracker() {
     playerId: number,
     transactionId: string,
     field: keyof Transaction,
-    value: any
+    value: string | number
   ) => {
     const player = players.find((p) => p.id === playerId)
     if (!player) return
@@ -447,16 +446,16 @@ export default function PlayerPerformanceTracker() {
       const transaction = player.transactions.find((t) => t.id === transactionId)
       if (!transaction) return
 
-      const updateData: any = {}
+      const updateData: Partial<Transaction> = {}
       
       if (field === 'cantidad') {
-        updateData.cantidad = value
+        updateData.cantidad = typeof value === 'number' ? value : Number(value)
       } else if (field === 'operation_type') {
-        updateData.operation_type = value
+        updateData.operation_type = value as "CASH IN" | "CASH OUT"
       } else if (field === 'transaction_media') {
-        updateData.transaction_media = value
+        updateData.transaction_media = value as "DIGITAL" | "CASH"
       } else if (field === 'comment') {
-        updateData.comment = value
+        updateData.comment = typeof value === 'string' ? value : String(value)
       }
 
       await api.put(`/api/v1/transactions/${transactionId}`, updateData)
@@ -500,7 +499,7 @@ export default function PlayerPerformanceTracker() {
         comment: bonoComment,
       }
       
-      const response = await api.post('/api/v1/bonos', newBono)
+      const response = await api.post<Omit<Bono, 'type'>>('/api/v1/bonos', newBono)
       
       setPlayers((prev) =>
         prev.map((p) =>
@@ -522,7 +521,7 @@ export default function PlayerPerformanceTracker() {
   }
 
   // Actualizar bono
-  const updateBono = async (playerId: number, bonoId: string, field: keyof Bono, value: any) => {
+  const updateBono = async (playerId: number, bonoId: string, field: keyof Bono, value: string | number) => {
     const player = players.find((p) => p.id === playerId)
     if (!player) return
 
@@ -542,11 +541,11 @@ export default function PlayerPerformanceTracker() {
 
     // Actualizar en el backend
     try {
-      const updateData: any = {}
+      const updateData: Partial<Bono> = {}
       if (field === 'value') {
-        updateData.value = value
+        updateData.value = typeof value === 'number' ? value : Number(value)
       } else if (field === 'comment') {
-        updateData.comment = value
+        updateData.comment = typeof value === "string" ? value : String(value)
       }
 
       await api.put(`/api/v1/bonos/${bonoId}`, updateData)
@@ -590,7 +589,7 @@ export default function PlayerPerformanceTracker() {
         comment: jackpotComment,
       }
       
-      const response = await api.post('/api/v1/jackpot-prices', newJackpot)
+      const response = await api.post<Omit<JackpotPrice, 'type'>>('/api/v1/jackpot-prices', newJackpot)
       
       setPlayers((prev) =>
         prev.map((p) =>
@@ -613,7 +612,7 @@ export default function PlayerPerformanceTracker() {
   }
 
   // Actualizar jackpot
-  const updateJackpot = async (playerId: number, jackpotId: string, field: keyof JackpotPrice, value: any) => {
+  const updateJackpot = async (playerId: number, jackpotId: string, field: keyof JackpotPrice, value: string | number) => {
     const player = players.find((p) => p.id === playerId)
     if (!player) return
 
@@ -633,13 +632,13 @@ export default function PlayerPerformanceTracker() {
 
     // Actualizar en el backend
     try {
-      const updateData: any = {}
+      const updateData: Partial<JackpotPrice> = {}
       if (field === 'value') {
-        updateData.value = value
+        updateData.value = typeof value === 'string' ? Number(value) : value
       } else if (field === 'comment') {
-        updateData.comment = value
+        updateData.comment = String(value)
       } else if (field === 'winner_hand') {
-        updateData.winner_hand = value
+        updateData.winner_hand = String(value)
       }
 
       await api.put(`/api/v1/jackpot-prices/${jackpotId}`, updateData)
@@ -792,7 +791,7 @@ export default function PlayerPerformanceTracker() {
     if (!user?.id) return
 
     try {
-      const response = await api.get(`/api/v1/sessions/active/user/${user.id}`)
+      const response = await api.get<{ sessions: { id: string }[] }>(`/api/v1/sessions/active/user/${user.id}`)
       const hasActive = response.sessions && response.sessions.length > 0
       
       if (hasActive && response.sessions[0]) {
@@ -805,6 +804,8 @@ export default function PlayerPerformanceTracker() {
     }
   }
 
+  // Función para resetear el día (no se usa actualmente pero puede ser útil en el futuro)
+  /*
   const resetDay = async () => {
     // Eliminar todas las transacciones, bonos y jackpots
     for (const player of players) {
@@ -855,6 +856,7 @@ export default function PlayerPerformanceTracker() {
       },
     ])
   }
+  */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-2 sm:p-4">
@@ -902,7 +904,7 @@ export default function PlayerPerformanceTracker() {
                     Para registrar jugadores y transacciones, primero debes iniciar un turno.
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Haz clic en "Iniciar Turno" en la sección de arriba para comenzar.
+                    Haz clic en &quot;Iniciar Turno&quot; en la sección de arriba para comenzar.
                   </p>
                 </div>
               </div>
@@ -1088,11 +1090,11 @@ export default function PlayerPerformanceTracker() {
                                               <div className="flex items-center gap-2">
                                                 <UserPlus className="w-4 h-4 text-green-600 dark:text-green-400" />
                                                 <div>
-                                                  <div className="font-medium text-green-600 dark:text-green-400">
-                                                    Crear nuevo usuario
-                                                  </div>
-                                                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Crear "{player.searchQuery}" como nuevo jugador
+                                              <div className="font-medium text-green-600 dark:text-green-400">
+                                                Crear nuevo usuario
+                                              </div>
+                                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                Crear &quot;{player.searchQuery}&quot; como nuevo jugador
                                                   </div>
                                                 </div>
                                               </div>
@@ -1108,11 +1110,11 @@ export default function PlayerPerformanceTracker() {
                                           <div className="flex items-center gap-2">
                                             <UserPlus className="w-4 h-4 text-green-600 dark:text-green-400" />
                                             <div>
-                                              <div className="font-medium text-green-600 dark:text-green-400">
-                                                Crear nuevo usuario
-                                              </div>
-                                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                No se encontraron resultados. Crear "{player.searchQuery}" como nuevo jugador
+                                            <div className="font-medium text-green-600 dark:text-green-400">
+                                              Crear nuevo usuario
+                                            </div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                              No se encontraron resultados. Crear &quot;{player.searchQuery}&quot; como nuevo jugador
                                               </div>
                                             </div>
                                           </div>

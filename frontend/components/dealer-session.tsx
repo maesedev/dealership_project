@@ -85,15 +85,16 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
       try {
         setIsLoading(true)
         setError('')
-        const response = await api.get(`/api/v1/sessions/active/user/${user.id}`)
+        const response = await api.get<{ sessions: DealerSession[] }>(`/api/v1/sessions/active/user/${user.id}`)
         const activeSessions = response.sessions || []
         setSessions(activeSessions)
         
         // Notificar al componente padre sobre el estado de la sesión
         onSessionChange?.(activeSessions.length > 0)
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error al cargar sesiones activas:', err)
-        setError(err.message || 'Error al cargar sesiones activas')
+        const errorMessage = err instanceof Error ? err.message : 'Error al cargar sesiones activas'
+        setError(errorMessage)
         onSessionChange?.(false)
       } finally {
         setIsLoading(false)
@@ -173,7 +174,7 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
         comment: null
       }
 
-      const response = await api.post('/api/v1/sessions', newSession)
+      const response = await api.post<DealerSession>('/api/v1/sessions', newSession)
       
       // Agregar la nueva sesión al principio del array (más reciente primero)
       const updatedSessions = [response, ...sessions]
@@ -184,9 +185,10 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
       
       // Notificar que se inició una nueva sesión para actualizar el activeSessionId
       onSessionStart?.()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al iniciar turno:', err)
-      setError(err.message || 'Error al iniciar el turno')
+      const errorMessage = err instanceof Error ? err.message : 'Error al iniciar el turno'
+      setError(errorMessage)
     } finally {
       setIsStarting(false)
     }
@@ -266,9 +268,10 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
 
       // Cerrar modal
       handleCloseEndModal()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al terminar turno:', err)
-      setError(err.message || 'Error al terminar el turno')
+      const errorMessage = err instanceof Error ? err.message : 'Error al terminar el turno'
+      setError(errorMessage)
     } finally {
       setIsEnding(null)
     }
@@ -304,9 +307,10 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
       setShowCommentModal(false)
       setSelectedSessionForComment(null)
       setCommentText('')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al guardar comentario:', err)
-      alert('Error al guardar comentario: ' + (err.message || 'Error desconocido'))
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      alert('Error al guardar comentario: ' + errorMessage)
     } finally {
       setIsUpdatingComment(false)
     }

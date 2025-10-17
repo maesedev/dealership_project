@@ -12,7 +12,7 @@ interface RequestOptions extends RequestInit {
 /**
  * Realiza una petición HTTP al backend con manejo de errores y autenticación
  */
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
@@ -73,7 +73,7 @@ export async function apiRequest<T = any>(
     }
 
     // Si no es JSON, devolver texto
-    return (await response.text()) as any
+    return (await response.text()) as T
   } catch (error) {
     // Re-lanzar errores para que el componente los maneje
     if (error instanceof Error) {
@@ -87,24 +87,24 @@ export async function apiRequest<T = any>(
  * Métodos auxiliares para diferentes tipos de peticiones HTTP
  */
 export const api = {
-  get: <T = any>(endpoint: string, options?: RequestOptions) =>
+  get: <T = unknown>(endpoint: string, options?: RequestOptions) =>
     apiRequest<T>(endpoint, { ...options, method: 'GET' }),
 
-  post: <T = any>(endpoint: string, data?: any, options?: RequestOptions) =>
+  post: <T = unknown>(endpoint: string, data?: unknown, options?: RequestOptions) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  put: <T = any>(endpoint: string, data?: any, options?: RequestOptions) =>
+  put: <T = unknown>(endpoint: string, data?: unknown, options?: RequestOptions) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  delete: <T = any>(endpoint: string, options?: RequestOptions) =>
+  delete: <T = unknown>(endpoint: string, options?: RequestOptions) =>
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
 }
 

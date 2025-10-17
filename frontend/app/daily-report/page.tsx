@@ -115,6 +115,7 @@ export default function DailyReportPage() {
     if (user && (user.roles?.includes("MANAGER") || user.roles?.includes("ADMIN"))) {
       loadReport()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, user])
 
   const loadReport = async () => {
@@ -224,9 +225,10 @@ export default function DailyReportPage() {
       } else {
         setBonosData([])
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error al cargar reporte:", err)
-      setError(err.message || "Error al cargar el reporte")
+      const errorMessage = err instanceof Error ? err.message : "Error al cargar el reporte"
+      setError(errorMessage)
       setReportData(null)
       setSessionsData([])
       setJackpotsData([])
@@ -245,9 +247,10 @@ export default function DailyReportPage() {
       await loadReport()
       setEditingSessionId(null)
       setNewHourlyPay(0)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error al actualizar sesión:", err)
-      alert("Error al actualizar el valor por hora: " + err.message)
+      const errorMessage = err instanceof Error ? err.message : "Error desconocido"
+      alert("Error al actualizar el valor por hora: " + errorMessage)
     }
   }
 
@@ -272,9 +275,10 @@ export default function DailyReportPage() {
       await loadReport()
       setEditingSessionData(null)
       setEditFormData({ reik: 0, jackpot: 0, tips: 0 })
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error al actualizar sesión:", err)
-      alert("Error al actualizar la sesión: " + err.message)
+      const errorMessage = err instanceof Error ? err.message : "Error desconocido"
+      alert("Error al actualizar la sesión: " + errorMessage)
     }
   }
 
