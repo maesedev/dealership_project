@@ -8,6 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Clock, Calendar, MessageSquare, Plus, Activity, Loader2, AlertCircle, DollarSign, Target } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 // Interfaz basada en el schema del backend
 interface DealerSession {
@@ -47,6 +56,10 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
     reik: '',
     jackpot: ''
   })
+  const [showCommentModal, setShowCommentModal] = useState(false)
+  const [selectedSessionForComment, setSelectedSessionForComment] = useState<string | null>(null)
+  const [commentText, setCommentText] = useState('')
+  const [isUpdatingComment, setIsUpdatingComment] = useState(false)
   
   // Verificar si hay una sesión activa
   const hasActiveSession = sessions.some(session => session.is_active)
@@ -257,10 +270,42 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
     }
   }
 
-  // Handler para agregar comentarios (por ahora solo simula)
-  const handleAddComment = () => {
-    // TODO: Implementar funcionalidad de agregar comentarios
-    console.log("Agregar comentario")
+  // Handler para agregar/editar comentarios
+  const handleAddComment = (session: DealerSession) => {
+    setSelectedSessionForComment(session.id)
+    setCommentText(session.comment || '')
+    setShowCommentModal(true)
+  }
+
+  // Guardar comentario
+  const handleSaveComment = async () => {
+    if (!selectedSessionForComment) return
+
+    try {
+      setIsUpdatingComment(true)
+      await api.put(`/api/v1/sessions/${selectedSessionForComment}`, {
+        comment: commentText
+      })
+
+      // Actualizar la sesión en el estado local
+      setSessions(prevSessions =>
+        prevSessions.map(session =>
+          session.id === selectedSessionForComment
+            ? { ...session, comment: commentText }
+            : session
+        )
+      )
+
+      // Cerrar modal y limpiar
+      setShowCommentModal(false)
+      setSelectedSessionForComment(null)
+      setCommentText('')
+    } catch (err: any) {
+      console.error('Error al guardar comentario:', err)
+      alert('Error al guardar comentario: ' + (err.message || 'Error desconocido'))
+    } finally {
+      setIsUpdatingComment(false)
+    }
   }
 
   if (isLoading) {
@@ -355,7 +400,7 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
                     {session.comment || "Sin comentarios"}
                   </div>
                   <Button
-                    onClick={handleAddComment}
+                    onClick={() => handleAddComment(session)}
                     variant="outline"
                     size="sm"
                     className="text-blue-600 border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 shrink-0 h-8 w-8 p-0"
@@ -500,6 +545,57 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
           </Card>
         </div>
       )}
+
+      {/* Modal para agregar/editar comentarios */}
+      <Dialog open={showCommentModal} onOpenChange={setShowCommentModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Comentarios del Turno</DialogTitle>
+            <DialogDescription>
+              Agrega o edita comentarios sobre este turno de trabajo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="comment">Comentario</Label>
+              <Textarea
+                id="comment"
+                placeholder="Escribe tus comentarios aquí..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                className="min-h-[120px] resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCommentModal(false)
+                setSelectedSessionForComment(null)
+                setCommentText('')
+              }}
+              disabled={isUpdatingComment}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveComment}
+              disabled={isUpdatingComment}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isUpdatingComment ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                'Guardar Comentario'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
