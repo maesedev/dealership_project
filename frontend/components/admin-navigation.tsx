@@ -3,7 +3,7 @@
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Users, Settings } from 'lucide-react'
+import { Users, Settings, FileText } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export function AdminNavigation() {
@@ -33,6 +33,15 @@ export function AdminNavigation() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button
+              onClick={() => router.push('/daily-report')}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 border-purple-300 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+            >
+              <FileText className="h-4 w-4" />
+              Reporte Diario
+            </Button>
             <Button
               onClick={() => router.push('/admin/users')}
               variant="outline"
