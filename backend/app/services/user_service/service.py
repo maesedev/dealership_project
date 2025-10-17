@@ -363,6 +363,29 @@ class UserService:
         
         return users
     
+    async def search_users_by_username(self, username_query: str) -> List[UserDomain]:
+        """
+        Buscar usuarios por nombre de usuario (username).
+        Búsqueda parcial y case insensitive.
+        
+        Ejemplos:
+        - "tiago" encontrará "santiago"
+        - "aul" encontrará "Paul"
+        """
+        # Crear regex para búsqueda parcial e insensible a mayúsculas
+        regex_pattern = {"$regex": username_query, "$options": "i"}
+        
+        # Buscar en el campo username
+        cursor = self.collection.find({"username": regex_pattern})
+        users = []
+        
+        async for user_data in cursor:
+            user_data["id"] = str(user_data["_id"])
+            del user_data["_id"]
+            users.append(UserDomain(**user_data))
+        
+        return users
+    
     async def get_user_stats(self) -> dict:
         """
         Obtener estadísticas de usuarios.

@@ -37,9 +37,9 @@ class TransactionDomain(BaseModel):
     
     @field_validator('cantidad')
     def validate_cantidad(cls, v):
-        """Validar que la cantidad sea positiva"""
-        if v <= 0:
-            raise ValueError('La cantidad debe ser mayor a 0')
+        """Validar que la cantidad sea positiva o cero"""
+        if v < 0:
+            raise ValueError('La cantidad debe ser mayor o igual a 0')
         return v
     
     def get_signed_amount(self) -> int:
@@ -78,8 +78,8 @@ class TransactionDomain(BaseModel):
             errors.append("El session_id es obligatorio")
         
         # Validar cantidad
-        if self.cantidad <= 0:
-            errors.append("La cantidad debe ser mayor a 0")
+        if self.cantidad < 0:
+            errors.append("La cantidad debe ser mayor o igual a 0")
         
         # Validar operation_type
         if self.operation_type not in [OperationType.IN, OperationType.OUT]:

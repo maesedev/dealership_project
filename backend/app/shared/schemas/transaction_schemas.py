@@ -26,8 +26,8 @@ class TransactionCreateSchema(BaseModel):
     
     @field_validator('cantidad')
     def validate_cantidad(cls, v):
-        if v <= 0:
-            raise ValueError('La cantidad debe ser mayor a 0')
+        if v < 0:
+            raise ValueError('La cantidad debe ser mayor o igual a 0')
         return v
 
 
@@ -40,8 +40,8 @@ class TransactionUpdateSchema(BaseModel):
     
     @field_validator('cantidad')
     def validate_cantidad(cls, v):
-        if v is not None and v <= 0:
-            raise ValueError('La cantidad debe ser mayor a 0')
+        if v is not None and v < 0:
+            raise ValueError('La cantidad debe ser mayor o igual a 0')
         return v
 
 
