@@ -57,6 +57,7 @@ interface SessionData {
   updated_at: string
   is_active: boolean
   duration_hours: number | null
+  dealer_name?: string // Added for displaying dealer name
 }
 
 interface JackpotData {
@@ -129,10 +130,35 @@ export default function DailyReportPage() {
 
       // Cargar datos de las sesiones
       if (report.sessions && report.sessions.length > 0) {
-        const sessionsPromises = report.sessions.map((sessionId) =>
-          api.get<SessionData>(`/api/v1/sessions/${sessionId}`)
-        )
-        const sessions = await Promise.all(sessionsPromises)
+        console.log("Cargando sesiones:", report.sessions)
+        const sessionsPromises = report.sessions.map(async (sessionId) => {
+          try {
+            console.log("Cargando sesión:", sessionId)
+            const sessionData = await api.get<SessionData>(`/api/v1/sessions/${sessionId}`)
+            console.log("Sesión cargada:", sessionData)
+            
+            // Cargar nombre del dealer
+            try {
+              console.log("Cargando dealer para sesión:", sessionData.id, "dealer_id:", sessionData.dealer_id)
+              const dealerData = await api.get<{ name: string }>(
+                `/api/v1/users/${sessionData.dealer_id}`
+              )
+              console.log("Dealer data recibida:", dealerData)
+              sessionData.dealer_name = dealerData.name
+            } catch (err) {
+              console.error("Error al cargar dealer:", err)
+              sessionData.dealer_name = "Dealer desconocido"
+            }
+            return sessionData
+          } catch (err) {
+            console.error("Error al cargar sesión:", err)
+            return null
+          }
+        })
+        const sessions = (await Promise.all(sessionsPromises)).filter(
+          (s) => s !== null
+        ) as SessionData[]
+        console.log("Sesiones finales:", sessions)
         setSessionsData(sessions)
       } else {
         setSessionsData([])
@@ -515,7 +541,7 @@ export default function DailyReportPage() {
                   </Button>
                 </div>
               </CardHeader>
-              {isJackpotsExpanded && (
+              {isJackpotsExpanded ? (
                 <CardContent className="p-6">
                   {jackpotsData.length === 0 ? (
                     <p className="text-center text-gray-500 py-8">
@@ -566,6 +592,12 @@ export default function DailyReportPage() {
                     </div>
                   )}
                 </CardContent>
+              ) : (
+                <CardContent className="p-2 pb-2">
+                  <div className="text-center text-gray-500 py-4">
+                    <p className="text-sm">Haz clic para expandir y ver los detalles</p>
+                  </div>
+                </CardContent>
               )}
             </Card>
 
@@ -596,7 +628,7 @@ export default function DailyReportPage() {
                   </Button>
                 </div>
               </CardHeader>
-              {isBonosExpanded && (
+              {isBonosExpanded ? (
                 <CardContent className="p-6">
                   {bonosData.length === 0 ? (
                     <p className="text-center text-gray-500 py-8">
@@ -647,6 +679,12 @@ export default function DailyReportPage() {
                     </div>
                   )}
                 </CardContent>
+              ) : (
+                <CardContent className="p-2 pb-2">
+                  <div className="text-center text-gray-500 py-4">
+                    <p className="text-sm">Haz clic para expandir y ver los detalles</p>
+                  </div>
+                </CardContent>
               )}
             </Card>
 
@@ -677,7 +715,7 @@ export default function DailyReportPage() {
                   </Button>
                 </div>
               </CardHeader>
-              {isSessionsExpanded && (
+              {isSessionsExpanded ? (
                 <CardContent className="p-6">
                   {sessionsData.length === 0 ? (
                     <p className="text-center text-gray-500 py-8">
@@ -743,7 +781,7 @@ export default function DailyReportPage() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
                                 Inicio
@@ -760,6 +798,14 @@ export default function DailyReportPage() {
                                 {session.end_time
                                   ? formatDateTime(session.end_time)
                                   : "En curso"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Dealer
+                              </p>
+                              <p className="font-medium">
+                                {session.dealer_name || "Dealer desconocido"}
                               </p>
                             </div>
                             <div>
@@ -892,6 +938,12 @@ export default function DailyReportPage() {
                     ))}
                     </div>
                   )}
+                </CardContent>
+              ) : (
+                <CardContent className="p-2 pb-2">
+                  <div className="text-center text-gray-500 py-4">
+                    <p className="text-sm">Haz clic para expandir y ver los detalles</p>
+                  </div>
                 </CardContent>
               )}
             </Card>
