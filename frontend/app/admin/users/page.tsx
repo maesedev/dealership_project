@@ -160,11 +160,11 @@ export default function UsersAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-2 sm:p-4">
+      <div className="max-w-full sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[80vw] xl:max-w-[75vw] mx-auto space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-6 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl shadow-lg border-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
             <Button
               variant="outline"
               size="sm"
@@ -172,33 +172,37 @@ export default function UsersAdminPage() {
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Volver
+              <span className="hidden sm:inline">Volver</span>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">
                 Administración de Usuarios
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                 Gestiona los usuarios del sistema
               </p>
             </div>
           </div>
           <Button
             onClick={() => setShowCreateModal(true)}
-            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 w-full sm:w-auto"
           >
             <UserPlus className="h-4 w-4 mr-2" />
-            Crear Usuario
+            <span className="hidden sm:inline">Crear Usuario</span>
+            <span className="sm:hidden">Crear</span>
           </Button>
         </div>
 
         {/* Buscador y Filtros */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
+        <Card className="shadow-lg border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg p-3 sm:p-4">
+            <CardTitle className="text-lg sm:text-xl font-semibold">Búsqueda y Filtros</CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
               {/* Búsqueda */}
-              <div className="flex items-center gap-2 flex-1">
-                <Search className="h-5 w-5 text-gray-400" />
+              <div className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-gray-400 flex-shrink-0" />
                 <Input
                   placeholder="Buscar por nombre o usuario..."
                   value={searchTerm}
@@ -207,82 +211,87 @@ export default function UsersAdminPage() {
                 />
               </div>
 
-              {/* Filtro por Rol */}
-              <div className="flex items-center gap-2">
-                <Label className="text-sm font-medium whitespace-nowrap">Rol:</Label>
-                <select
-                  value={filterRole}
-                  onChange={(e) => setFilterRole(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="ALL">Todos</option>
-                  <option value="ADMIN">Admin</option>
-                  <option value="MANAGER">Manager</option>
-                  <option value="DEALER">Dealer</option>
-                  <option value="USER">User</option>
-                </select>
-              </div>
+              {/* Filtros en grid responsive */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Filtro por Rol */}
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-medium whitespace-nowrap min-w-[40px]">Rol:</Label>
+                  <select
+                    value={filterRole}
+                    onChange={(e) => setFilterRole(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="ALL">Todos</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="DEALER">Dealer</option>
+                    <option value="USER">User</option>
+                  </select>
+                </div>
 
-              {/* Filtro por Estado */}
-              <div className="flex items-center gap-2">
-                <Label className="text-sm font-medium whitespace-nowrap">Estado:</Label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="ALL">Todos</option>
-                  <option value="ACTIVE">Activos</option>
-                  <option value="INACTIVE">Inactivos</option>
-                </select>
-              </div>
+                {/* Filtro por Estado */}
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-medium whitespace-nowrap min-w-[50px]">Estado:</Label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="ALL">Todos</option>
+                    <option value="ACTIVE">Activos</option>
+                    <option value="INACTIVE">Inactivos</option>
+                  </select>
+                </div>
 
-              {/* Botón para limpiar filtros */}
-              {(searchTerm || filterRole !== 'ALL' || filterStatus !== 'ALL') && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchTerm('')
-                    setFilterRole('ALL')
-                    setFilterStatus('ALL')
-                  }}
-                  className="whitespace-nowrap"
-                >
-                  Limpiar Filtros
-                </Button>
-              )}
+                {/* Botón para limpiar filtros */}
+                {(searchTerm || filterRole !== 'ALL' || filterStatus !== 'ALL') && (
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSearchTerm('')
+                        setFilterRole('ALL')
+                        setFilterStatus('ALL')
+                      }}
+                      className="w-full"
+                    >
+                      Limpiar Filtros
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 shadow-lg">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-600" />
-              <p className="text-red-800 dark:text-red-200">{error}</p>
+              <p className="text-red-800 dark:text-red-200 font-medium">{error}</p>
             </div>
           </div>
         )}
 
         {/* Lista de Usuarios */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
+        <Card className="shadow-lg border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-t-lg p-3 sm:p-4">
+            <CardTitle className="text-lg sm:text-xl font-semibold">
               Usuarios ({filteredUsers.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+              <table className="w-full min-w-[800px]">
+                <thead className="bg-blue-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Nombre</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Usuario</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Roles</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
+                    <th className="px-3 sm:px-4 py-3 text-left text-sm font-semibold w-[25%] min-w-[150px]">Nombre</th>
+                    <th className="px-3 sm:px-4 py-3 text-left text-sm font-semibold w-[15%] min-w-[100px]">Usuario</th>
+                    <th className="px-3 sm:px-4 py-3 text-left text-sm font-semibold w-[20%] min-w-[120px]">Roles</th>
+                    <th className="px-3 sm:px-4 py-3 text-left text-sm font-semibold w-[15%] min-w-[100px]">Estado</th>
+                    <th className="px-3 sm:px-4 py-3 text-left text-sm font-semibold w-[25%] min-w-[150px]">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -291,23 +300,23 @@ export default function UsersAdminPage() {
                       key={user.id}
                       className="border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{user.name}</div>
+                      <td className="px-3 sm:px-4 py-3 w-[25%] min-w-[150px]">
+                        <div className="font-medium text-sm sm:text-base">{user.name}</div>
                         <div className="text-xs text-gray-500">
                           ID: {user.id.substring(0, 8)}...
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-sm">
+                      <td className="px-3 sm:px-4 py-3 w-[15%] min-w-[100px]">
+                        <span className="font-mono text-xs sm:text-sm">
                           {user.username || '-'}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 sm:px-4 py-3 w-[20%] min-w-[120px]">
                         <div className="flex flex-wrap gap-1">
                           {user.roles.map((role) => (
                             <span
                               key={role}
-                              className={`px-2 py-1 rounded text-xs font-semibold ${getRoleBadgeColor(
+                              className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-semibold ${getRoleBadgeColor(
                                 [role]
                               )}`}
                             >
@@ -316,27 +325,28 @@ export default function UsersAdminPage() {
                           ))}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 sm:px-4 py-3 w-[15%] min-w-[100px]">
                         {user.is_active ? (
-                          <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm">
-                            <CheckCircle className="h-4 w-4" />
-                            Activo
+                          <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-xs sm:text-sm">
+                            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Activo</span>
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-red-600 dark:text-red-400 text-sm">
-                            <XCircle className="h-4 w-4" />
-                            Inactivo
+                          <span className="flex items-center gap-1 text-red-600 dark:text-red-400 text-xs sm:text-sm">
+                            <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Inactivo</span>
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                      <td className="px-3 sm:px-4 py-3 w-[25%] min-w-[150px]">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setEditingUser(user)}
+                            className="p-1 sm:p-2"
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                           {isAdmin && (
                             <>
@@ -345,27 +355,27 @@ export default function UsersAdminPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => deactivateUser(user.id)}
-                                  className="text-orange-600"
+                                  className="text-orange-600 p-1 sm:p-2"
                                 >
-                                  <XCircle className="h-4 w-4" />
+                                  <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                               ) : (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => activateUser(user.id)}
-                                  className="text-green-600"
+                                  className="text-green-600 p-1 sm:p-2"
                                 >
-                                  <CheckCircle className="h-4 w-4" />
+                                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                               )}
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => deleteUser(user.id, user.name)}
-                                className="text-red-600"
+                                className="text-red-600 p-1 sm:p-2"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                               </Button>
                             </>
                           )}
@@ -451,10 +461,10 @@ function CreateUserModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Crear Nuevo Usuario</CardTitle>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm">
+        <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
+          <CardTitle className="text-lg font-semibold">Crear Nuevo Usuario</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -569,10 +579,10 @@ function EditUserModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Editar Usuario</CardTitle>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm">
+        <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-t-lg">
+          <CardTitle className="text-lg font-semibold">Editar Usuario</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

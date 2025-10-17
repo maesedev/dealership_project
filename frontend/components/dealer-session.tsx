@@ -30,9 +30,10 @@ interface DealerSession {
 interface DealerSessionProps {
   onSessionChange?: (hasActiveSession: boolean) => void
   onSessionEnd?: () => void
+  onSessionStart?: () => void
 }
 
-export function DealerSession({ onSessionChange, onSessionEnd }: DealerSessionProps) {
+export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }: DealerSessionProps) {
   const { user } = useAuth()
   // Estado para todas las sesiones (historial completo)
   const [sessions, setSessions] = useState<DealerSession[]>([])
@@ -166,6 +167,9 @@ export function DealerSession({ onSessionChange, onSessionEnd }: DealerSessionPr
       
       // Notificar al componente padre que ahora hay una sesión activa
       onSessionChange?.(true)
+      
+      // Notificar que se inició una nueva sesión para actualizar el activeSessionId
+      onSessionStart?.()
     } catch (err: any) {
       console.error('Error al iniciar turno:', err)
       setError(err.message || 'Error al iniciar el turno')

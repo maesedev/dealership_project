@@ -222,7 +222,16 @@ export default function PlayerPerformanceTracker() {
   const updateSearchQuery = (playerId: number, query: string) => {
     setPlayers((prev) =>
       prev.map((player) =>
-        player.id === playerId ? { ...player, searchQuery: query, name: "" } : player
+        player.id === playerId 
+          ? { 
+              ...player, 
+              searchQuery: query, 
+              name: "", 
+              userId: null,  // Limpiar el usuario seleccionado
+              searchResults: [],  // Limpiar resultados de búsqueda
+              showSearchResults: false  // Ocultar dropdown
+            } 
+          : player
       )
     )
 
@@ -487,6 +496,24 @@ export default function PlayerPerformanceTracker() {
     setActiveSessionId(null)
   }
 
+  // Actualizar el ID de sesión activa cuando se inicia una nueva sesión
+  const updateActiveSessionId = async () => {
+    if (!user?.id) return
+
+    try {
+      const response = await api.get(`/api/v1/sessions/active/user/${user.id}`)
+      const hasActive = response.sessions && response.sessions.length > 0
+      
+      if (hasActive && response.sessions[0]) {
+        const sessionId = response.sessions[0].id
+        setActiveSessionId(sessionId)
+        console.log('Nueva sesión activa:', sessionId)
+      }
+    } catch (error) {
+      console.error('Error al actualizar sesión activa:', error)
+    }
+  }
+
   const resetDay = async () => {
     // Eliminar todas las transacciones
     for (const player of players) {
@@ -542,6 +569,7 @@ export default function PlayerPerformanceTracker() {
         <DealerSession 
           onSessionChange={setHasActiveSession} 
           onSessionEnd={clearSessionData}
+          onSessionStart={updateActiveSessionId}
         />
 
         {/* Mensaje cuando no hay sesión activa */}
@@ -657,7 +685,7 @@ export default function PlayerPerformanceTracker() {
                           <td className="px-4 py-3 w-[30%] min-w-[200px]">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 relative">
-                                <div className={`border-2 ${player.borderColor} rounded-lg p-2 ${player.transactions.length > 0 ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                <div className={`border-2 ${player.userId ? player.borderColor : 'border-gray-300 dark:border-gray-600'} rounded-lg p-2 ${player.transactions.length > 0 ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
                                   <div className="flex items-center gap-2">
                                     <Search className="w-4 h-4 text-gray-400" />
                                 <Input
