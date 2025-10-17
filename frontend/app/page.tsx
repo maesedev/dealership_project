@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
@@ -22,21 +22,41 @@ import {
   Trash2,
   UserPlus,
   AlertCircle,
+  Search,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Switch } from "@/components/ui/switch"
 
-interface Session {
-  id: number
+interface Transaction {
+  id: string
+  user_id: string
+  session_id: string
   cantidad: number
-  tipo: "CASH_IN" | "CASH_OUT"
-  comentarios: string
+  operation_type: "CASH IN" | "CASH OUT"
+  transaction_media: "DIGITAL" | "CASH"
+  comment: string
+  created_at: string
+  updated_at: string
+  signed_amount: number
+}
+
+interface UserSearchResult {
+  id: string
+  username: string
+  name: string
+  roles: string[]
+  is_active: boolean
 }
 
 interface Player {
   id: number
   name: string
-  sessions: Session[]
+  userId: string | null
+  searchQuery: string
+  searchResults: UserSearchResult[]
+  showSearchResults: boolean
+  transactions: Transaction[]
+  borderColor: string
 }
 
 export default function PlayerPerformanceTracker() {
@@ -44,17 +64,89 @@ export default function PlayerPerformanceTracker() {
   const { user } = useAuth()
   const [hasActiveSession, setHasActiveSession] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
-  const [players, setPlayers] = useState<Player[]>([
+  // Función para generar un color aleatorio para el borde
+  const generateRandomBorderColor = () => {
+    const colors = [
+      'border-red-400',
+      'border-blue-400',
+      'border-green-400',
+      'border-yellow-400',
+      'border-purple-400',
+      'border-pink-400',
+      'border-indigo-400',
+      'border-orange-400',
+      'border-teal-400',
+      'border-cyan-400',
+    ]
+    return colors[Math.floor(Math.random() * colors.length)]
+  }
+
+  const [players, setPlayers] = useState<Player[]>(() => [
     {
       id: 1,
       name: "",
-      sessions: [],
+      userId: null,
+      searchQuery: "",
+      searchResults: [],
+      showSearchResults: false,
+      transactions: [],
+      borderColor: generateRandomBorderColor(),
     },
   ])
 
-  // Verificar si hay una sesión activa
+  // Verificar si hay una sesión activa y cargar transacciones
   useEffect(() => {
+    // Cargar transacciones de una sesión
+    const loadTransactionsForSession = async (sessionId: string) => {
+      try {
+        const response = await api.get(`/api/v1/transactions/session/${sessionId}`)
+        
+        if (response.transactions && response.transactions.length > 0) {
+          // Agrupar transacciones por usuario
+          const transactionsByUser = new Map<string, Transaction[]>()
+          
+          for (const transaction of response.transactions) {
+            if (!transactionsByUser.has(transaction.user_id)) {
+              transactionsByUser.set(transaction.user_id, [])
+            }
+            transactionsByUser.get(transaction.user_id)!.push(transaction)
+          }
+          
+          // Crear jugadores con sus transacciones
+          const loadedPlayers: Player[] = []
+          let playerId = 1
+          
+          for (const [userId, transactions] of transactionsByUser.entries()) {
+            // Obtener información del usuario
+            try {
+              const userResponse = await api.get(`/api/v1/users/${userId}`)
+              loadedPlayers.push({
+                id: playerId++,
+                name: userResponse.name || "",
+                userId: userId,
+                searchQuery: userResponse.name || "",
+                searchResults: [],
+                showSearchResults: false,
+                transactions: transactions,
+                borderColor: generateRandomBorderColor(),
+              })
+            } catch (error) {
+              console.error('Error al cargar usuario:', error)
+            }
+          }
+          
+          if (loadedPlayers.length > 0) {
+            setPlayers(loadedPlayers)
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar transacciones:', error)
+      }
+    }
+
     const checkActiveSession = async () => {
       if (!user?.id) {
         setIsCheckingSession(false)
@@ -65,6 +157,14 @@ export default function PlayerPerformanceTracker() {
         const response = await api.get(`/api/v1/sessions/active/user/${user.id}`)
         const hasActive = response.sessions && response.sessions.length > 0
         setHasActiveSession(hasActive)
+        
+        if (hasActive && response.sessions[0]) {
+          const sessionId = response.sessions[0].id
+          setActiveSessionId(sessionId)
+          
+          // Cargar transacciones existentes
+          await loadTransactionsForSession(sessionId)
+        }
       } catch (error) {
         console.error('Error al verificar sesión activa:', error)
         setHasActiveSession(false)
@@ -76,57 +176,219 @@ export default function PlayerPerformanceTracker() {
     checkActiveSession()
   }, [user?.id])
 
-  const updatePlayerName = (playerId: number, name: string) => {
-    setPlayers((prev) => prev.map((player) => (player.id === playerId ? { ...player, name } : player)))
+  // Buscar usuarios por nombre
+  const searchUsers = async (playerId: number, query: string) => {
+    if (query.length < 2) {
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === playerId
+            ? { ...player, searchResults: [], showSearchResults: false }
+            : player
+        )
+      )
+      return
+    }
+
+    try {
+      console.log('Buscando usuarios con query:', query)
+      const response = await api.get(`/api/v1/users/search/by-username?q=${encodeURIComponent(query)}`)
+      console.log('Respuesta de búsqueda:', response)
+      
+      const users = response.users || []
+      console.log('Usuarios encontrados:', users.length)
+      
+      // Siempre mostrar el dropdown si hay al menos 2 caracteres (para mostrar la opción de crear)
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === playerId
+            ? { ...player, searchResults: users, showSearchResults: true }
+            : player
+        )
+      )
+    } catch (error) {
+      console.error('Error al buscar usuarios:', error)
+      // Aún así mostrar el dropdown para permitir crear usuario
+      setPlayers((prev) =>
+        prev.map((player) =>
+          player.id === playerId
+            ? { ...player, searchResults: [], showSearchResults: true }
+            : player
+        )
+      )
+    }
   }
 
-  const updateSession = (playerId: number, sessionId: number, field: keyof Session, value: string | number | "CASH_IN" | "CASH_OUT") => {
+  // Actualizar query de búsqueda
+  const updateSearchQuery = (playerId: number, query: string) => {
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === playerId ? { ...player, searchQuery: query, name: "" } : player
+      )
+    )
+
+    // Cancelar búsqueda anterior
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    // Realizar búsqueda con debounce
+    searchTimeoutRef.current = setTimeout(() => {
+      searchUsers(playerId, query)
+    }, 300)
+  }
+
+  // Seleccionar un usuario de los resultados
+  const selectUser = (playerId: number, user: UserSearchResult) => {
     setPlayers((prev) =>
       prev.map((player) =>
         player.id === playerId
           ? {
               ...player,
-              sessions: player.sessions.map((session) =>
-                session.id === sessionId ? { ...session, [field]: value } : session,
+              name: user.name,
+              userId: user.id,
+              searchQuery: user.name,
+              showSearchResults: false,
+              searchResults: [],
+            }
+          : player
+      )
+    )
+  }
+
+  // Crear nuevo usuario
+  const createNewUser = async (playerId: number, userName: string) => {
+    try {
+      console.log('Creando nuevo usuario con nombre:', userName)
+      
+      const newUserData = {
+        name: userName,
+        roles: ["USER"]
+      }
+      
+      const response = await api.post('/api/v1/users/create', newUserData)
+      console.log('Usuario creado:', response)
+      
+      // Seleccionar el usuario recién creado
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === playerId
+          ? {
+              ...player,
+                name: response.name,
+                userId: response.id,
+                searchQuery: response.name,
+                showSearchResults: false,
+                searchResults: [],
+              }
+            : player
+        )
+      )
+      
+      alert(`Usuario "${userName}" creado exitosamente`)
+    } catch (error) {
+      console.error('Error al crear usuario:', error)
+      alert('Error al crear usuario')
+    }
+  }
+
+  // Agregar transacción a un jugador
+  const addTransactionToPlayer = async (playerId: number) => {
+    const player = players.find((p) => p.id === playerId)
+    if (!player || !player.userId || !activeSessionId) return
+
+    try {
+      const newTransaction = {
+        user_id: player.userId,
+        session_id: activeSessionId,
+                  cantidad: 0,
+        operation_type: "CASH IN",
+        transaction_media: "DIGITAL",
+        comment: "",
+      }
+
+      const response = await api.post('/api/v1/transactions', newTransaction)
+      
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.id === playerId
+            ? { ...p, transactions: [...p.transactions, response] }
+            : p
+        )
+      )
+    } catch (error) {
+      console.error('Error al crear transacción:', error)
+      alert('Error al crear transacción')
+    }
+  }
+
+  // Actualizar transacción
+  const updateTransaction = async (
+    playerId: number,
+    transactionId: string,
+    field: keyof Transaction,
+    value: any
+  ) => {
+    const player = players.find((p) => p.id === playerId)
+    if (!player) return
+
+    // Actualizar localmente primero para mejor UX
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              transactions: p.transactions.map((t) =>
+                t.id === transactionId ? { ...t, [field]: value } : t
               ),
             }
-          : player,
-      ),
+          : p
+      )
     )
+
+    // Luego actualizar en el backend
+    try {
+      const transaction = player.transactions.find((t) => t.id === transactionId)
+      if (!transaction) return
+
+      const updateData: any = {}
+      
+      if (field === 'cantidad') {
+        updateData.cantidad = value
+      } else if (field === 'operation_type') {
+        updateData.operation_type = value
+      } else if (field === 'transaction_media') {
+        updateData.transaction_media = value
+      } else if (field === 'comment') {
+        updateData.comment = value
+      }
+
+      await api.put(`/api/v1/transactions/${transactionId}`, updateData)
+    } catch (error) {
+      console.error('Error al actualizar transacción:', error)
+      alert('Error al actualizar transacción')
+    }
   }
 
-  const addSessionToPlayer = (playerId: number) => {
+  // Eliminar transacción
+  const removeTransactionFromPlayer = async (playerId: number, transactionId: string) => {
+    try {
+      const response = await api.delete(`/api/v1/transactions/${transactionId}`)
+      console.log('Transacción eliminada exitosamente:', response)
+      
     setPlayers((prev) =>
       prev.map((player) =>
         player.id === playerId
           ? {
               ...player,
-              sessions: [
-                ...player.sessions,
-                {
-                  id: player.sessions.length > 0 ? Math.max(...player.sessions.map((s) => s.id)) + 1 : 1,
-                  cantidad: 0,
-                  tipo: "CASH_IN" as const,
-                  comentarios: "",
-                },
-              ],
+                transactions: player.transactions.filter((t) => t.id !== transactionId),
             }
-          : player,
-      ),
+            : player
+        )
     )
-  }
-
-  const removeSessionFromPlayer = (playerId: number, sessionId: number) => {
-    setPlayers((prev) =>
-      prev.map((player) =>
-        player.id === playerId
-          ? {
-              ...player,
-              sessions: player.sessions.filter((session) => session.id !== sessionId),
-            }
-          : player,
-      ),
-    )
+    } catch (error) {
+      console.error('Error al eliminar transacción:', error)
+      alert('Error al eliminar transacción')
+    }
   }
 
   const addNewPlayer = () => {
@@ -136,13 +398,31 @@ export default function PlayerPerformanceTracker() {
       {
         id: newPlayerId,
         name: "",
-        sessions: [],
+        userId: null,
+        searchQuery: "",
+        searchResults: [],
+        showSearchResults: false,
+        transactions: [],
+        borderColor: generateRandomBorderColor(),
       },
     ])
   }
 
-  const removePlayer = (playerId: number) => {
+  const removePlayer = async (playerId: number) => {
     if (players.length > 1) {
+      const player = players.find((p) => p.id === playerId)
+      
+      // Eliminar todas las transacciones del jugador
+      if (player && player.transactions.length > 0) {
+        try {
+          for (const transaction of player.transactions) {
+            await api.delete(`/api/v1/transactions/${transaction.id}`)
+          }
+        } catch (error) {
+          console.error('Error al eliminar transacciones del jugador:', error)
+        }
+      }
+      
       setPlayers((prev) => prev.filter((player) => player.id !== playerId))
     }
   }
@@ -156,24 +436,24 @@ export default function PlayerPerformanceTracker() {
     }).format(amount)
   }
 
-  const calculateBalance = (cantidad: number, tipo: "CASH_IN" | "CASH_OUT") => {
-    return tipo === "CASH_IN" ? cantidad : -cantidad
+  const calculateBalance = (cantidad: number, tipo: "CASH IN" | "CASH OUT") => {
+    return tipo === "CASH IN" ? cantidad : -cantidad
   }
 
   const getPlayerTotals = (player: Player) => {
-    return player.sessions.reduce(
-      (acc, session) => {
-        const balance = calculateBalance(session.cantidad, session.tipo)
-        const cashIn = session.tipo === "CASH_IN" ? session.cantidad : 0
-        const cashOut = session.tipo === "CASH_OUT" ? session.cantidad : 0
+    return player.transactions.reduce(
+      (acc, transaction) => {
+        const balance = calculateBalance(transaction.cantidad, transaction.operation_type)
+        const cashIn = transaction.operation_type === "CASH IN" ? transaction.cantidad : 0
+        const cashOut = transaction.operation_type === "CASH OUT" ? transaction.cantidad : 0
         return {
           cashIn: acc.cashIn + cashIn,
           cashOut: acc.cashOut + cashOut,
           balance: acc.balance + balance,
-          sessions: acc.sessions + 1,
+          transactions: acc.transactions + 1,
         }
       },
-      { cashIn: 0, cashOut: 0, balance: 0, sessions: 0 },
+      { cashIn: 0, cashOut: 0, balance: 0, transactions: 0 },
     )
   }
 
@@ -189,12 +469,46 @@ export default function PlayerPerformanceTracker() {
     { cashIn: 0, cashOut: 0, balance: 0 },
   )
 
-  const resetDay = () => {
+  // Limpiar datos de la sesión cuando se termina el turno
+  const clearSessionData = () => {
+    console.log('Limpiando datos de la sesión anterior...')
     setPlayers([
       {
         id: 1,
         name: "",
-        sessions: [],
+        userId: null,
+        searchQuery: "",
+        searchResults: [],
+        showSearchResults: false,
+        transactions: [],
+        borderColor: generateRandomBorderColor(),
+      },
+    ])
+    setActiveSessionId(null)
+  }
+
+  const resetDay = async () => {
+    // Eliminar todas las transacciones
+    for (const player of players) {
+      for (const transaction of player.transactions) {
+        try {
+          await api.delete(`/api/v1/transactions/${transaction.id}`)
+        } catch (error) {
+          console.error('Error al eliminar transacción:', error)
+        }
+      }
+    }
+    
+    setPlayers([
+      {
+        id: 1,
+        name: "",
+        userId: null,
+        searchQuery: "",
+        searchResults: [],
+        showSearchResults: false,
+        transactions: [],
+        borderColor: generateRandomBorderColor(),
       },
     ])
   }
@@ -225,7 +539,10 @@ export default function PlayerPerformanceTracker() {
         <AdminNavigation />
 
         {/* Sesión del Dealer */}
-        <DealerSession onSessionChange={setHasActiveSession} />
+        <DealerSession 
+          onSessionChange={setHasActiveSession} 
+          onSessionEnd={clearSessionData}
+        />
 
         {/* Mensaje cuando no hay sesión activa */}
         {!isCheckingSession && !hasActiveSession && (
@@ -251,7 +568,7 @@ export default function PlayerPerformanceTracker() {
 
         {/* Main Table - Solo mostrar si hay sesión activa */}
         {hasActiveSession && (
-          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+          <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm" style={{ overflow: 'visible' }}>
           <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <CardTitle className="text-lg sm:text-xl font-semibold">Registro de Jugadores y Transacciones</CardTitle>
@@ -266,8 +583,8 @@ export default function PlayerPerformanceTracker() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+          <CardContent className="p-0" style={{ overflow: 'visible' }}>
+            <div className="overflow-x-auto" style={{ overflowY: 'visible', position: 'relative' }}>
               <table className="w-full">
                 <thead className="bg-blue-50 dark:bg-gray-700">
                   <tr>
@@ -291,6 +608,12 @@ export default function PlayerPerformanceTracker() {
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                       <div className="flex items-center gap-2">
+                        <Calculator className="w-4 h-4 text-orange-500" />
+                        Medio de Pago
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      <div className="flex items-center gap-2">
                         <Calculator className="w-4 h-4 text-blue-500" />
                         Balance
                       </div>
@@ -309,7 +632,12 @@ export default function PlayerPerformanceTracker() {
                 <tbody>
                   {players.map((player) => {
                     const playerTotals = getPlayerTotals(player)
-                    const showAddButton = player.name.trim().length > 2
+                    const hasUserId = player.userId !== null
+                    
+                    // Debug: ver el estado del dropdown
+                    if (player.searchQuery.length >= 2) {
+                      console.log(`Player ${player.id} - Query: "${player.searchQuery}", ShowResults: ${player.showSearchResults}, Results count: ${player.searchResults.length}`)
+                    }
 
                     return (
                       <React.Fragment key={player.id}>
@@ -317,30 +645,123 @@ export default function PlayerPerformanceTracker() {
                         <tr className="border-b border-gray-100 dark:border-gray-600 hover:bg-blue-25 dark:hover:bg-gray-700 transition-colors">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <div className="flex-1">
+                              <div className="flex-1 relative" style={{ zIndex: player.transactions.length > 0 ? 'auto' : 10 }}>
+                                <div className={`border-2 ${player.borderColor} rounded-lg p-2 ${player.transactions.length > 0 ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                  <div className="flex items-center gap-2">
+                                    <Search className="w-4 h-4 text-gray-400" />
                                 <Input
-                                  placeholder="Nombre del jugador"
-                                  value={player.name}
-                                  onChange={(e) => updatePlayerName(player.id, e.target.value)}
-                                  className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                                {player.sessions.length > 0 && (
+                                      placeholder="Buscar jugador..."
+                                      value={player.searchQuery}
+                                      onChange={(e) => updateSearchQuery(player.id, e.target.value)}
+                                      disabled={player.transactions.length > 0}
+                                      className={`border-0 focus:ring-0 p-0 h-auto ${player.transactions.length > 0 ? 'bg-transparent cursor-not-allowed opacity-70' : ''}`}
+                                      title={player.transactions.length > 0 ? 'No se puede cambiar el jugador después de crear transacciones' : ''}
+                                    />
+                                  </div>
+                                </div>
+                                
+                                {/* Dropdown de resultados de búsqueda - solo si no hay transacciones */}
+                                {!player.transactions.length && player.showSearchResults && player.searchQuery.length >= 2 && (() => {
+                                  // Verificar si existe un usuario con el mismo nombre exacto (case insensitive)
+                                  const exactMatch = player.searchResults.some(
+                                    (userResult) => userResult.name.toLowerCase() === player.searchQuery.toLowerCase()
+                                  )
+                                  const showCreateOption = !exactMatch
+                                  
+                                  console.log('Renderizando dropdown para player', player.id, 'con', player.searchResults.length, 'resultados')
+                                  
+                                  return (
+                                    <div 
+                                      className="absolute bg-white dark:bg-gray-800 border-2 border-blue-400 dark:border-blue-600 rounded-lg shadow-2xl max-h-64 overflow-y-auto"
+                                      style={{ 
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        right: 0,
+                                        zIndex: 999999,
+                                        width: '100%'
+                                      }}
+                                    >
+                                      {player.searchResults.length > 0 ? (
+                                        <>
+                                          {player.searchResults.map((userResult) => (
+                                            <button
+                                              key={userResult.id}
+                                              onClick={() => {
+                                                console.log('Usuario seleccionado:', userResult)
+                                                selectUser(player.id, userResult)
+                                              }}
+                                              className="w-full text-left px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-600"
+                                            >
+                                              <div className="font-medium text-gray-800 dark:text-white">
+                                                {userResult.name}
+                                              </div>
+                                              {userResult.username && (
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                  @{userResult.username}
+                                                </div>
+                                              )}
+                                            </button>
+                                          ))}
+                                          {/* Opción para crear nuevo usuario - solo si no hay match exacto */}
+                                          {showCreateOption && (
+                                            <button
+                                              onClick={() => createNewUser(player.id, player.searchQuery)}
+                                              className="w-full text-left px-4 py-3 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50"
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <UserPlus className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                                <div>
+                                                  <div className="font-medium text-green-600 dark:text-green-400">
+                                                    Crear nuevo usuario
+                                                  </div>
+                                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Crear "{player.searchQuery}" como nuevo jugador
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </button>
+                                          )}
+                                        </>
+                                      ) : (
+                                        /* Si no hay resultados, mostrar opción de crear */
+                                        <button
+                                          onClick={() => createNewUser(player.id, player.searchQuery)}
+                                          className="w-full text-left px-4 py-3 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <UserPlus className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                            <div>
+                                              <div className="font-medium text-green-600 dark:text-green-400">
+                                                Crear nuevo usuario
+                                              </div>
+                                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                No se encontraron resultados. Crear "{player.searchQuery}" como nuevo jugador
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </button>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+                                
+                                {player.transactions.length > 0 && (
                                   <div className="text-xs text-gray-500 mt-1">
-                                    {player.sessions.length} Transacción(es) - Total: {formatCurrency(playerTotals.balance)}
+                                    {player.transactions.length} Transacción(es) - Total: {formatCurrency(playerTotals.balance)}
                                   </div>
                                 )}
                               </div>
                               <div className="flex flex-col gap-1">
-                                {showAddButton && (
                                   <Button
-                                    onClick={() => addSessionToPlayer(player.id)}
+                                  onClick={() => addTransactionToPlayer(player.id)}
                                     variant="outline"
                                     size="sm"
-                                    className="text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                  disabled={!hasUserId}
+                                  className={`${hasUserId ? "text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20" : "opacity-50 cursor-not-allowed"}`}
                                   >
                                     <Plus className="w-4 h-4" />
                                   </Button>
-                                )}
                                 {players.length > 1 && (
                                   <Button
                                     onClick={() => removePlayer(player.id)}
@@ -359,20 +780,21 @@ export default function PlayerPerformanceTracker() {
                           <td className="px-4 py-3"></td>
                           <td className="px-4 py-3"></td>
                           <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3"></td>
                         </tr>
                         
                         {/* Filas de transacciones */}
-                        {player.sessions.map((session, sessionIndex) => {
-                          const balance = calculateBalance(session.cantidad, session.tipo)
+                        {player.transactions.map((transaction, transactionIndex) => {
+                          const balance = calculateBalance(transaction.cantidad, transaction.operation_type)
                           
                           return (
                             <tr
-                              key={`${player.id}-${session.id}`}
+                              key={`${player.id}-${transaction.id}`}
                               className="border-b border-gray-100 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors bg-gray-50/50 dark:bg-gray-800/50"
                             >
                               <td className="px-4 py-3">
                                 <div className="pl-4 text-sm text-gray-500 dark:text-gray-400">
-                                  ↳ Transacción {sessionIndex + 1}
+                                  ↳ Transacción {transactionIndex + 1}
                                 </div>
                               </td>
                               <td className="px-4 py-3">
@@ -380,28 +802,40 @@ export default function PlayerPerformanceTracker() {
                                   type="number"
                                   step="1000"
                                   placeholder="0"
-                                  value={session.cantidad || ""}
+                                  value={transaction.cantidad || ""}
                                   onChange={(e) =>
-                                    updateSession(player.id, session.id, "cantidad", Number.parseFloat(e.target.value) || 0)
+                                    updateTransaction(player.id, transaction.id, "cantidad", Number.parseFloat(e.target.value) || 0)
                                   }
                                   className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
-                                  <span className={`text-sm font-medium ${session.tipo === "CASH_OUT" ? "text-red-600" : "text-gray-400"}`}>
+                                  <span className={`text-sm font-medium ${transaction.operation_type === "CASH OUT" ? "text-red-600" : "text-gray-400"}`}>
                                     CASH OUT
                                   </span>
                                   <Switch
-                                    checked={session.tipo === "CASH_IN"}
+                                    checked={transaction.operation_type === "CASH IN"}
                                     onCheckedChange={(checked) =>
-                                      updateSession(player.id, session.id, "tipo", checked ? "CASH_IN" : "CASH_OUT")
+                                      updateTransaction(player.id, transaction.id, "operation_type", checked ? "CASH IN" : "CASH OUT")
                                     }
                                   />
-                                  <span className={`text-sm font-medium ${session.tipo === "CASH_IN" ? "text-green-600" : "text-gray-400"}`}>
+                                  <span className={`text-sm font-medium ${transaction.operation_type === "CASH IN" ? "text-green-600" : "text-gray-400"}`}>
                                     CASH IN
                                   </span>
                                 </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <select
+                                  value={transaction.transaction_media}
+                                  onChange={(e) =>
+                                    updateTransaction(player.id, transaction.id, "transaction_media", e.target.value as "DIGITAL" | "CASH")
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
+                                >
+                                  <option value="DIGITAL">Digital</option>
+                                  <option value="CASH">Cash</option>
+                                </select>
                               </td>
                               <td className="px-4 py-3">
                                 <div
@@ -417,14 +851,14 @@ export default function PlayerPerformanceTracker() {
                               <td className="px-4 py-3">
                                 <Input
                                   placeholder="Comentarios de la Transacción"
-                                  value={session.comentarios}
-                                  onChange={(e) => updateSession(player.id, session.id, "comentarios", e.target.value)}
+                                  value={transaction.comment || ""}
+                                  onChange={(e) => updateTransaction(player.id, transaction.id, "comment", e.target.value)}
                                   className="border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 />
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <Button
-                                  onClick={() => removeSessionFromPlayer(player.id, session.id)}
+                                  onClick={() => removeTransactionFromPlayer(player.id, transaction.id)}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -458,13 +892,13 @@ export default function PlayerPerformanceTracker() {
                 .map((player) => {
                   const totals = getPlayerTotals(player)
                   return (
-                    <Card key={player.id} className="border border-gray-200 dark:border-gray-600">
+                    <Card key={player.id} className={`border-2 ${player.borderColor}`}>
                       <CardContent className="p-4">
                         <h3 className="font-semibold text-lg mb-2 text-gray-800 dark:text-white">{player.name}</h3>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-600 dark:text-gray-400">Transacciones:</span>
-                            <span className="font-medium">{totals.sessions}</span>
+                            <span className="font-medium">{totals.transactions}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-green-600 dark:text-green-400">Total Cash In:</span>

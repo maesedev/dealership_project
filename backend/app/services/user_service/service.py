@@ -363,7 +363,7 @@ class UserService:
         
         return users
     
-    async def search_users_by_username(self, username_query: str) -> List[UserDomain]:
+    async def search_users_by_username(self, name_query: str) -> List[UserDomain]:
         """
         Buscar usuarios por nombre de usuario (username).
         Búsqueda parcial y case insensitive.
@@ -373,10 +373,10 @@ class UserService:
         - "aul" encontrará "Paul"
         """
         # Crear regex para búsqueda parcial e insensible a mayúsculas
-        regex_pattern = {"$regex": username_query, "$options": "i"}
+        regex_pattern = {"$regex": name_query, "$options": "i"}
         
         # Buscar en el campo username
-        cursor = self.collection.find({"username": regex_pattern})
+        cursor = self.collection.find({"name": regex_pattern})
         users = []
         
         async for user_data in cursor:

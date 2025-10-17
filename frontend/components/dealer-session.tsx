@@ -29,9 +29,10 @@ interface DealerSession {
 
 interface DealerSessionProps {
   onSessionChange?: (hasActiveSession: boolean) => void
+  onSessionEnd?: () => void
 }
 
-export function DealerSession({ onSessionChange }: DealerSessionProps) {
+export function DealerSession({ onSessionChange, onSessionEnd }: DealerSessionProps) {
   const { user } = useAuth()
   // Estado para todas las sesiones (historial completo)
   const [sessions, setSessions] = useState<DealerSession[]>([])
@@ -238,6 +239,9 @@ export function DealerSession({ onSessionChange }: DealerSessionProps) {
       // Verificar si quedan sesiones activas
       const hasActive = updatedSessions.some(session => session.is_active)
       onSessionChange?.(hasActive)
+
+      // Notificar que se terminó la sesión para limpiar memoria
+      onSessionEnd?.()
 
       // Cerrar modal
       handleCloseEndModal()

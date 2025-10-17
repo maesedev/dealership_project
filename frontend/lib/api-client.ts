@@ -19,9 +19,9 @@ export async function apiRequest<T = any>(
   const { requireAuth = true, ...fetchOptions } = options
 
   // Construir headers
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+    ...(fetchOptions.headers as Record<string, string>),
   }
 
   // Agregar token de autenticación si se requiere
@@ -59,6 +59,11 @@ export async function apiRequest<T = any>(
       }
 
       throw new Error(errorMessage)
+    }
+
+    // Para DELETE requests con status 204 (No Content), considerar como exitoso
+    if (response.status === 204) {
+      return null as T
     }
 
     // Intentar parsear respuesta como JSON

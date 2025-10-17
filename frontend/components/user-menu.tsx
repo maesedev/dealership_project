@@ -8,15 +8,8 @@ import { LogOut, User, Shield } from 'lucide-react'
 export function UserMenu() {
   const { user, logout } = useAuth()
 
-  console.log('🔍 [DEBUG] UserMenu renderizado con user:', user ? {
-    id: user.id,
-    name: user.name,
-    username: user.username,
-    roles: user.roles
-  } : 'null')
-
-  if (!user) {
-    console.log('🔍 [DEBUG] UserMenu: No hay usuario, no renderizando')
+   if (!user) {
+    console.log('User not found')
     return null
   }
 
