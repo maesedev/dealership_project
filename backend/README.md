@@ -794,6 +794,7 @@ Los reportes diarios se calculan automáticamente con la siguiente lógica:
 **Comportamiento**:
 - Si la fecha es HOY (Bogotá): SIEMPRE regenera el reporte (datos en tiempo real)
 - Si es fecha pasada: Devuelve existente o genera si no existe
+- Si es fecha futura (mañana en adelante): Devuelve datos en ceros
 - Los reportes se generan automáticamente desde las sesiones del día
 - **NO se pueden crear manualmente**, solo se generan automáticamente
 **Respuesta incluye**:

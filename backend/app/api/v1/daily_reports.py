@@ -160,16 +160,37 @@ async def get_daily_report_by_date(
     Comportamiento:
     - Si la fecha es HOY (Bogotá): SIEMPRE regenera el reporte (datos en tiempo real)
     - Si la fecha es pasada: Devuelve existente o genera si no existe
+    - Si la fecha es futura (mañana en adelante): Devuelve datos en ceros
     """
     try:
         # Obtener fecha actual en Bogotá
         now_bogota = datetime.now(BOGOTA_TZ)
         today_bogota = now_bogota.date()
         
-        # Verificar si la fecha solicitada es HOY
+        # Verificar si la fecha solicitada es HOY o futura
         is_today = report_date == today_bogota
+        is_future = report_date > today_bogota
         
-        if is_today:
+        if is_future:
+            # Si la fecha es futura (mañana en adelante), devolver datos en ceros
+            return DailyReportResponseSchema(
+                id="future_report",
+                date=report_date,
+                reik=0,
+                jackpot=0,
+                ganancias=0,
+                gastos=0,
+                sessions=[],
+                jackpot_wins=[],
+                bonos=[],
+                comment="Reporte futuro - Datos no disponibles",
+                created_at=now_bogota,
+                updated_at=now_bogota,
+                total_income=0,
+                is_profitable=False,
+                profit_margin=0.0
+            )
+        elif is_today:
             # Si es HOY, SIEMPRE regenerar el reporte
             # Primero eliminar el reporte existente si hay uno
             existing_report = await daily_report_service.get_report_by_date(report_date)
