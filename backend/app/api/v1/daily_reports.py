@@ -3,7 +3,7 @@ Endpoints para la gestión de reportes diarios.
 """
 
 from typing import List
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, time
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException, Depends, status
 from app.services.daily_report_service.service import DailyReportService
@@ -27,6 +27,7 @@ from app.shared.dependencies.services import (
     get_jackpot_price_service,
     get_bono_service
 )
+from app.shared.utils.timezone import get_bogota_timezone, bogota_to_utc, now_bogota
 
 # Zona horaria de Bogotá
 BOGOTA_TZ = ZoneInfo("America/Bogota")
@@ -50,11 +51,16 @@ async def generate_daily_report_from_sessions(
     - Gastos: bonos + jackpots ganados + (costo por hora × horas de trabajo) + tips
     - Ganancias: reik - gastos
     """
-    # Obtener todas las sesiones del día
-    start_of_day = datetime.combine(report_date, datetime.min.time())
-    end_of_day = datetime.combine(report_date, datetime.max.time())
+    # Obtener todas las sesiones del día en hora de Bogotá
+    # Crear el inicio y fin del día en hora de Bogotá
+    start_of_day_bogota = datetime.combine(report_date, time.min).replace(tzinfo=get_bogota_timezone())
+    end_of_day_bogota = datetime.combine(report_date, time.max).replace(tzinfo=get_bogota_timezone())
     
-    sessions = await session_service.get_sessions_by_date_range(start_of_day, end_of_day)
+    # Convertir a UTC para la consulta en base de datos (las sesiones se almacenan en UTC)
+    start_of_day_utc = bogota_to_utc(start_of_day_bogota)
+    end_of_day_utc = bogota_to_utc(end_of_day_bogota)
+    
+    sessions = await session_service.get_sessions_by_date_range(start_of_day_utc, end_of_day_utc)
     
     # Inicializar valores
     total_reik = 0
@@ -81,16 +87,17 @@ async def generate_daily_report_from_sessions(
             if session.end_time:
                 duration_hours = (session.end_time - session.start_time).total_seconds() / 3600
             else:
-                # Si no tiene end_time, asumir que sigue activa hasta ahora
-                duration_hours = (datetime.now(timezone.utc) - session.start_time).total_seconds() / 3600
+                # Si no tiene end_time, asumir que sigue activa hasta ahora (en hora de Bogotá)
+                now_utc = bogota_to_utc(now_bogota())
+                duration_hours = (now_utc - session.start_time).total_seconds() / 3600
             
             dealer_cost = duration_hours * session.hourly_pay
             total_dealer_cost += int(dealer_cost)
     
-    # Obtener jackpots ganados del día (filtrando por rango de fechas)
+    # Obtener jackpots ganados del día (filtrando por rango de fechas en UTC)
     jackpots = await jackpot_price_service.filter_jackpots(
-        date_from=start_of_day,
-        date_to=end_of_day,
+        date_from=start_of_day_utc,
+        date_to=end_of_day_utc,
         limit=1000
     )
     
@@ -103,10 +110,10 @@ async def generate_daily_report_from_sessions(
         ))
         total_jackpot_wins += jackpot.value
     
-    # Obtener bonos del día (filtrando por rango de fechas)
+    # Obtener bonos del día (filtrando por rango de fechas en UTC)
     bonos = await bono_service.filter_bonos(
-        date_from=start_of_day,
-        date_to=end_of_day,
+        date_from=start_of_day_utc,
+        date_to=end_of_day_utc,
         limit=1000
     )
     
@@ -164,8 +171,8 @@ async def get_daily_report_by_date(
     """
     try:
         # Obtener fecha actual en Bogotá
-        now_bogota = datetime.now(BOGOTA_TZ)
-        today_bogota = now_bogota.date()
+        current_bogota_time = now_bogota()
+        today_bogota = current_bogota_time.date()
         
         # Verificar si la fecha solicitada es HOY o futura
         is_today = report_date == today_bogota

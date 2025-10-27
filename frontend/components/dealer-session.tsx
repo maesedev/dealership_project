@@ -129,10 +129,11 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
     }
   }, [sessions])
 
-  // Función para formatear fecha/hora (versión completa)
+  // Función para formatear fecha/hora (versión completa) - SIEMPRE en hora de Bogotá
   const formatDateTime = (dateString: string): string => {
     const date = new Date(dateString)
     return date.toLocaleString('es-CO', {
+      timeZone: 'America/Bogota',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -141,10 +142,11 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
     })
   }
 
-  // Función para formatear fecha/hora (versión corta para móviles)
+  // Función para formatear fecha/hora (versión corta para móviles) - SIEMPRE en hora de Bogotá
   const formatDateTimeShort = (dateString: string): string => {
     const date = new Date(dateString)
     return date.toLocaleString('es-CO', {
+      timeZone: 'America/Bogota',
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
@@ -162,13 +164,34 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
       setIsStarting(true)
       setError('')
       
+      // Obtener la hora actual en zona horaria de Bogotá de forma correcta
       const now = new Date()
-      const bogotaTime = new Date(now.toLocaleString('en-US', { 
-        timeZone: 'America/Bogota' 
-      }))
+      // Usar Intl.DateTimeFormat para obtener la hora actual en Bogotá
+      const bogotaDateTime = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).formatToParts(now)
+
+      // Construir fecha ISO en formato local de Bogotá
+      const year = bogotaDateTime.find(part => part.type === 'year')?.value
+      const month = bogotaDateTime.find(part => part.type === 'month')?.value
+      const day = bogotaDateTime.find(part => part.type === 'day')?.value
+      const hour = bogotaDateTime.find(part => part.type === 'hour')?.value
+      const minute = bogotaDateTime.find(part => part.type === 'minute')?.value
+      const second = bogotaDateTime.find(part => part.type === 'second')?.value
+      
+      // Crear timestamp sin zona horaria (naive), el backend se encargará de interpretarlo correctamente
+      const bogotaTimeString = `${year}-${month}-${day}T${hour}:${minute}:${second}`
+      
       const newSession = {
         dealer_id: user.id,
-        start_time: bogotaTime.toISOString(),
+        start_time: bogotaTimeString,
         jackpot: 0,
         reik: 0,
         tips: 0,

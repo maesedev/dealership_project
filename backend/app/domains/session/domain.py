@@ -1,17 +1,23 @@
 """
 Dominio Session - Lógica de negocio pura para sesiones de dealer.
+Todas las fechas se convierten automáticamente a hora de Bogotá en formato UTC ISO.
 """
 
 from typing import Optional
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pydantic import BaseModel, field_validator
-from app.shared.utils import now_bogota, get_bogota_timezone, ensure_bogota_timezone
+
+
+# Zona horaria de Bogotá
+BOGOTA_TZ = ZoneInfo("America/Bogota")
 
 
 class SessionDomain(BaseModel):
     """
     Entidad de dominio Session.
     Representa una sesión de trabajo de un dealer.
+    Todas las fechas se almacenan en UTC pero representan momentos en hora de Bogotá.
     """
     id: Optional[str] = None
     dealer_id: str
@@ -25,16 +31,53 @@ class SessionDomain(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
-    @field_validator('start_time', 'end_time', 'created_at', 'updated_at')
-    def ensure_timezone_aware(cls, v):
-        """Asegurar que todos los datetimes tengan información de zona horaria (Bogotá)"""
+    @staticmethod
+    def convert_to_bogota_utc(dt: datetime) -> datetime:
+        """
+        Convierte cualquier datetime a hora de Bogotá y luego a UTC.
+        
+        Proceso:
+        1. Si el datetime es naive (sin timezone), se asume que ya está en hora de Bogotá
+        2. Si tiene timezone, se convierte a hora de Bogotá
+        3. Se retorna en UTC para almacenamiento consistente
+        
+        Ejemplo:
+        - Input: 2025-10-26 14:00:00 (China, UTC+8)
+        - Hora de Bogotá: 2025-10-26 01:00:00-05:00
+        - Output UTC: 2025-10-26 06:00:00+00:00
+        """
+        if dt is None:
+            return None
+            
+        # Si es naive, asumirlo como hora de Bogotá
+        if dt.tzinfo is None:
+            dt_bogota = dt.replace(tzinfo=BOGOTA_TZ)
+        else:
+            # Convertir a hora de Bogotá
+            dt_bogota = dt.astimezone(BOGOTA_TZ)
+        
+        # Convertir a UTC para almacenamiento
+        return dt_bogota.astimezone(timezone.utc)
+    
+    @field_validator('start_time', 'end_time', 'created_at', 'updated_at', mode='before')
+    def normalize_to_bogota_utc(cls, v):
+        """
+        Normalizar todos los datetimes a hora de Bogotá en formato UTC.
+        Esto asegura que sin importar desde dónde se envíe el timestamp,
+        siempre se almacene el momento correcto en hora de Bogotá.
+        """
         if v is None:
             return v
-        # Si el datetime es naive (sin timezone), asumirlo como Bogotá
-        if v.tzinfo is None:
-            return v.replace(tzinfo=get_bogota_timezone())
-        # Convertir a zona horaria de Bogotá
-        return ensure_bogota_timezone(v)
+        
+        # Si viene como string, parsearlo primero
+        if isinstance(v, str):
+            try:
+                v = datetime.fromisoformat(v.replace('Z', '+00:00'))
+            except ValueError:
+                # Intentar otros formatos comunes
+                v = datetime.fromisoformat(v)
+        
+        return cls.convert_to_bogota_utc(v)
     
     @field_validator('jackpot', 'reik', 'tips', 'hourly_pay')
     def validate_positive_values(cls, v):
@@ -57,6 +100,12 @@ class SessionDomain(BaseModel):
     def get_total_earnings(self) -> int:
         """Calcular ganancias totales de la sesión"""
         return self.jackpot + self.reik + self.tips + self.hourly_pay
+    
+    def get_bogota_time(self, dt: datetime) -> datetime:
+        """Obtener un datetime en hora de Bogotá para visualización"""
+        if dt is None:
+            return None
+        return dt.astimezone(BOGOTA_TZ)
     
     def validate_business_rules(self) -> list[str]:
         """
@@ -97,17 +146,21 @@ class SessionDomainService:
                       hourly_pay: int = 0, comment: str = None) -> SessionDomain:
         """
         Crear una nueva sesión con validación de reglas de negocio.
+        El start_time se convierte automáticamente a hora de Bogotá.
         """
-        start_time = now_bogota().isoformat().replace('-05:00', 'Z')
-            
-
+        if start_time is None:
+            # Obtener hora actual de Bogotá y convertir a UTC
+            start_time = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
+        
+        now_bogota_utc = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
+        
         session = SessionDomain(
             dealer_id=dealer_id,
             start_time=start_time,
             hourly_pay=hourly_pay,
             comment=comment,
-            created_at=start_time,
-            updated_at=start_time
+            created_at=now_bogota_utc,
+            updated_at=now_bogota_utc
         )
         
         # Validar reglas de negocio
@@ -121,6 +174,7 @@ class SessionDomainService:
     def end_session(session: SessionDomain, end_time: datetime = None) -> SessionDomain:
         """
         Finalizar una sesión.
+        El end_time se convierte automáticamente a hora de Bogotá.
         
         Validación:
         - No permite terminar una sesión que ya fue terminada
@@ -140,13 +194,15 @@ class SessionDomainService:
             raise ValueError("El reik debe ser mayor a cero para terminar la sesión")
         
         if end_time is None:
-            end_time = now_bogota()
+            # Obtener hora actual de Bogotá y convertir a UTC
+            end_time = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
         
+        # El validator se encargará de convertir end_time a hora de Bogotá
         if end_time < session.start_time:
             raise ValueError("El tiempo de fin no puede ser anterior al tiempo de inicio")
         
         session.end_time = end_time
-        session.updated_at = now_bogota()
+        session.updated_at = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
         
         return session
     
@@ -159,7 +215,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.jackpot += amount
-        session.updated_at = now_bogota()
+        session.updated_at = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
         
         return session
     
@@ -172,7 +228,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.reik += amount
-        session.updated_at = now_bogota()
+        session.updated_at = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
         
         return session
     
@@ -185,6 +241,6 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.tips += amount
-        session.updated_at = now_bogota()
+        session.updated_at = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
         
         return session

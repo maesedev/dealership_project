@@ -20,6 +20,7 @@ from app.shared.dependencies.auth import (
     get_current_manager_or_admin
 )
 from app.shared.dependencies.services import get_session_service, get_user_service
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 # Crear router para sesiones
 router = APIRouter()
@@ -286,7 +287,7 @@ async def end_session(
             )
         
         if end_time is None:
-            end_time = datetime.now(timezone.utc)
+            end_time = bogota_to_utc(now_bogota())
         
         session = await session_service.end_session(session_id, end_time)
         if not session:

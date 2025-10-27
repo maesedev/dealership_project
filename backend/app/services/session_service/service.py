@@ -1,7 +1,7 @@
 """
 Servicio Session - Orquestador de lógica de sesiones.
 Este servicio consume el dominio Session pero no lo modifica.
-Se encarga de la comunicación con la base de datos y orquestación de operaciones.
+Se encarga de la comunicación con la base de datos y orquestración de operaciones.
 """
 
 from typing import List, Optional
@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from app.domains.session.domain import SessionDomain, SessionDomainService
 from app.infrastructure.database.connection import get_database
-from app.shared.utils import now_bogota
+from app.shared.utils.timezone import now_bogota, bogota_to_utc, ensure_bogota_timezone
 
 
 class SessionService:
@@ -190,7 +190,7 @@ class SessionService:
             if value is not None and hasattr(existing_session, key):
                 setattr(existing_session, key, value)
         
-        existing_session.updated_at = now_bogota()
+        existing_session.updated_at = bogota_to_utc(now_bogota())
         
         # Validar reglas de negocio
         errors = existing_session.validate_business_rules()
