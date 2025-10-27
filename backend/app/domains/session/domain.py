@@ -103,7 +103,7 @@ class SessionDomainService:
         
         session = SessionDomain(
             dealer_id=dealer_id,
-            start_time=start_time,
+            start_time=now_bogota(),
             hourly_pay=hourly_pay,
             comment=comment,
             created_at=now_bogota(),
