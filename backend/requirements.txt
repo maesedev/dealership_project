@@ -8,3 +8,4 @@ pymongo
 bcrypt
 python-jose[cryptography]
 passlib[bcrypt]
+gunicorn
