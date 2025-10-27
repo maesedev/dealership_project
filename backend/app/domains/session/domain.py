@@ -58,11 +58,9 @@ class SessionDomain(BaseModel):
         return dt_bogota.astimezone(timezone.utc)
     
     @field_validator('start_time', 'end_time', 'created_at', 'updated_at', mode='before')
-    def normalize_to_bogota_utc(cls, v):
+    def normalize_to_utc(cls, v):
         """
-        Normalizar todos los datetimes a hora de Bogotá en formato UTC.
-        Esto asegura que sin importar desde dónde se envíe el timestamp,
-        siempre se almacene el momento correcto en hora de Bogotá.
+        Normalizar todos los datetimes a UTC para almacenamiento consistente.
         """
         if v is None:
             return v
@@ -75,6 +73,11 @@ class SessionDomain(BaseModel):
                 # Intentar otros formatos comunes
                 v = datetime.fromisoformat(v)
         
+        # Si ya es UTC, usar directamente
+        if isinstance(v, datetime) and v.tzinfo == timezone.utc:
+            return v
+        
+        # Solo aplicar conversión si no es UTC
         return cls.convert_to_bogota_utc(v)
     
     @field_validator('jackpot', 'reik', 'tips', 'hourly_pay')

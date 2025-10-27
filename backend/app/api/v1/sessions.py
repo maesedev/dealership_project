@@ -287,7 +287,8 @@ async def end_session(
             )
         
         if end_time is None:
-            end_time = bogota_to_utc(now_bogota())
+            # Usar directamente UTC actual para evitar problemas de conversión
+            end_time = datetime.now(timezone.utc)
         
         session = await session_service.end_session(session_id, end_time)
         if not session:
