@@ -191,8 +191,8 @@ async def get_daily_report_by_date(
                 jackpot_wins=[],
                 bonos=[],
                 comment="Reporte futuro - Datos no disponibles",
-                created_at=now_bogota,
-                updated_at=now_bogota,
+                created_at=now_bogota(),
+                updated_at=now_bogota(),
                 total_income=0,
                 is_profitable=False,
                 profit_margin=0.0

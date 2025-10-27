@@ -38,9 +38,9 @@ class DailyReportDomain(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
-    @field_validator('reik', 'jackpot', 'ganancias', 'gastos')
+    @field_validator('reik', 'jackpot', 'gastos')
     def validate_positive_values(cls, v):
-        """Validar que los valores no sean negativos"""
+        """Validar que los valores no sean negativos (excepto ganancias)"""
         if v < 0:
             raise ValueError('Los valores monetarios no pueden ser negativos')
         return v
@@ -84,8 +84,7 @@ class DailyReportDomain(BaseModel):
             errors.append("El reik no puede ser negativo")
         if self.jackpot < 0:
             errors.append("El jackpot no puede ser negativo")
-        if self.ganancias < 0:
-            errors.append("Las ganancias no pueden ser negativas")
+        # Las ganancias pueden ser negativas (pérdidas)
         if self.gastos < 0:
             errors.append("Los gastos no pueden ser negativos")
         
@@ -176,8 +175,7 @@ class DailyReportDomainService:
             report.jackpot = jackpot
         
         if ganancias is not None:
-            if ganancias < 0:
-                raise ValueError("Las ganancias no pueden ser negativas")
+            # Las ganancias pueden ser negativas (pérdidas)
             report.ganancias = ganancias
         
         if gastos is not None:

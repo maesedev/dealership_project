@@ -45,7 +45,7 @@ class DailyReportCreateSchema(BaseModel):
             raise ValueError('La fecha no puede ser futura')
         return v
     
-    @field_validator('reik', 'jackpot', 'ganancias', 'gastos')
+    @field_validator('reik', 'jackpot', 'gastos')
     def validate_positive_values(cls, v):
         if v < 0:
             raise ValueError('Los valores monetarios no pueden ser negativos')
@@ -65,7 +65,7 @@ class DailyReportUpdateSchema(BaseModel):
     sessions: Optional[List[str]] = None
     comment: Optional[str] = None
     
-    @field_validator('reik', 'jackpot', 'ganancias', 'gastos')
+    @field_validator('reik', 'jackpot', 'gastos')
     def validate_positive_values(cls, v):
         if v is not None and v < 0:
             raise ValueError('Los valores monetarios no pueden ser negativos')
