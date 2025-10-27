@@ -34,29 +34,27 @@ class SessionDomain(BaseModel):
     @staticmethod
     def convert_to_bogota_utc(dt: datetime) -> datetime:
         """
-        Convierte cualquier datetime a hora de Bogotá y luego a UTC.
+        Convierte cualquier datetime representando el momento actual a UTC.
         
-        Proceso:
-        1. Si el datetime es naive (sin timezone), se asume que ya está en hora de Bogotá
-        2. Si tiene timezone, se convierte a hora de Bogotá
-        3. Se retorna en UTC para almacenamiento consistente
-        
-        Ejemplo:
-        - Input: 2025-10-26 14:00:00 (China, UTC+8)
-        - Hora de Bogotá: 2025-10-26 01:00:00-05:00
-        - Output UTC: 2025-10-26 06:00:00+00:00
+        Proceso simplificado:
+        1. Si el datetime es naive (sin timezone), se asume que representa la hora actual de Bogotá
+        2. Si tiene timezone UTC, representa el momento actual y se usa directamente
+        3. Si tiene otra timezone, se convierte a Bogotá primero
         """
         if dt is None:
             return None
             
-        # Si es naive, asumirlo como hora de Bogotá
+        # Si es naive, asumirlo como hora de Bogotá y convertir a UTC
         if dt.tzinfo is None:
             dt_bogota = dt.replace(tzinfo=BOGOTA_TZ)
-        else:
-            # Convertir a hora de Bogotá
-            dt_bogota = dt.astimezone(BOGOTA_TZ)
+            return dt_bogota.astimezone(timezone.utc)
         
-        # Convertir a UTC para almacenamiento
+        # Si es UTC, usar directamente (representa el momento actual)
+        if dt.tzinfo == timezone.utc:
+            return dt
+        
+        # Si tiene otra timezone, convertir a Bogotá y luego a UTC
+        dt_bogota = dt.astimezone(BOGOTA_TZ)
         return dt_bogota.astimezone(timezone.utc)
     
     @field_validator('start_time', 'end_time', 'created_at', 'updated_at', mode='before')
@@ -178,26 +176,17 @@ class SessionDomainService:
         
         Validación:
         - No permite terminar una sesión que ya fue terminada
-        - El jackpot debe ser mayor a cero
-        - El reik debe ser mayor a cero
+        - El tiempo de fin no puede ser anterior al de inicio
         """
         # Validar que la sesión no haya sido terminada previamente
         if session.end_time is not None:
             raise ValueError("Esta sesión ya fue terminada anteriormente")
         
-        # Validar que el jackpot sea mayor a cero
-        if session.jackpot <= 0:
-            raise ValueError("El jackpot debe ser mayor a cero para terminar la sesión")
-        
-        # Validar que el reik sea mayor a cero
-        if session.reik <= 0:
-            raise ValueError("El reik debe ser mayor a cero para terminar la sesión")
-        
         if end_time is None:
             # Obtener hora actual de Bogotá y convertir a UTC
             end_time = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
         
-        # El validator se encargará de convertir end_time a hora de Bogotá
+        # El validator se encargará de convertir end_time apropiadamente
         if end_time < session.start_time:
             raise ValueError("El tiempo de fin no puede ser anterior al tiempo de inicio")
         

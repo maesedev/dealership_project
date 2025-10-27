@@ -164,34 +164,11 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
       setIsStarting(true)
       setError('')
       
-      // Obtener la hora actual en zona horaria de Bogotá de forma correcta
-      const now = new Date()
-      // Usar Intl.DateTimeFormat para obtener la hora actual en Bogotá
-      const bogotaDateTime = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Bogota',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).formatToParts(now)
-
-      // Construir fecha ISO en formato local de Bogotá
-      const year = bogotaDateTime.find(part => part.type === 'year')?.value
-      const month = bogotaDateTime.find(part => part.type === 'month')?.value
-      const day = bogotaDateTime.find(part => part.type === 'day')?.value
-      const hour = bogotaDateTime.find(part => part.type === 'hour')?.value
-      const minute = bogotaDateTime.find(part => part.type === 'minute')?.value
-      const second = bogotaDateTime.find(part => part.type === 'second')?.value
-      
-      // Crear timestamp sin zona horaria (naive), el backend se encargará de interpretarlo correctamente
-      const bogotaTimeString = `${year}-${month}-${day}T${hour}:${minute}:${second}`
-      
+      // Método simplificado: usar la hora actual y dejar que el backend maneje la conversión
       const newSession = {
         dealer_id: user.id,
-        start_time: bogotaTimeString,
+        // Enviamos la fecha actual, el backend la convertirá correctamente a Bogotá
+        start_time: new Date().toISOString(),
         jackpot: 0,
         reik: 0,
         tips: 0,
