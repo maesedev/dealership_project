@@ -62,8 +62,11 @@ async def create_user(
                 detail="Solo los administradores pueden crear usuarios con roles de Dealer, Manager o Admin"
             )
         
+        # Convertir username a minúsculas si se proporciona
+        username = user_data.username.lower() if user_data.username else None
+        
         user = await user_service.create_user(
-            username=user_data.username,
+            username=username,
             password=user_data.password,
             name=user_data.name,
             roles=user_data.roles

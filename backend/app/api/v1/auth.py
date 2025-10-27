@@ -50,9 +50,9 @@ async def login(
     ```
     """
     
-    # Intentar autenticar
+    # Intentar autenticar (convertir username a minúsculas)
     result = await auth_service.login(
-        username=credentials.username,
+        username=credentials.username.lower(),
         password=credentials.password
     )
     

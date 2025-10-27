@@ -61,6 +61,8 @@ class UserService:
         
         # Verificar que el username no exista si se proporcionó
         if username:
+            # Convertir username a minúsculas
+            username = username.lower()
             existing_user = await self.get_user_by_username(username)
             if existing_user:
                 raise ValueError("El username ya está registrado")
@@ -271,6 +273,8 @@ class UserService:
         Autenticar un usuario con username y contraseña.
         Solo usuarios con username pueden iniciar sesión.
         """
+        # Convertir username a minúsculas para la búsqueda
+        username = username.lower()
         user = await self.get_user_by_username(username)
         
         if not user:
