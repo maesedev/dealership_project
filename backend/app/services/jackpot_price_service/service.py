@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from app.domains.jackpot_price.domain import JackpotPriceDomain, JackpotPriceDomainService
 from app.infrastructure.database.connection import get_database
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 
 class JackpotPriceService:
@@ -175,7 +176,7 @@ class JackpotPriceService:
             if value is not None and hasattr(existing_jackpot, key):
                 setattr(existing_jackpot, key, value)
         
-        existing_jackpot.updated_at = datetime.now(timezone.utc)
+        existing_jackpot.updated_at = bogota_to_utc(now_bogota())
         
         # Validar reglas de negocio
         errors = existing_jackpot.validate_business_rules()

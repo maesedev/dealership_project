@@ -9,6 +9,7 @@ from datetime import datetime, date, timezone
 from bson import ObjectId
 from app.domains.daily_report.domain import DailyReportDomain, DailyReportDomainService, JackpotWinEntry, BonoEntry
 from app.infrastructure.database.connection import get_database
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 
 class DailyReportService:
@@ -182,7 +183,7 @@ class DailyReportService:
             if value is not None and hasattr(existing_report, key):
                 setattr(existing_report, key, value)
         
-        existing_report.updated_at = datetime.now(timezone.utc)
+        existing_report.updated_at = bogota_to_utc(now_bogota())
         
         # Validar reglas de negocio
         errors = existing_report.validate_business_rules()

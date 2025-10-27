@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, validator
 from enum import Enum
 import re
-from app.shared.utils import now_bogota
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 
 class UserRole(str, Enum):
@@ -157,8 +157,8 @@ class UserDomainService:
             hashed_password=hashed_password,
             name=name,
             roles=roles,
-            created_at=now_bogota(),
-            updated_at=now_bogota()
+            created_at=bogota_to_utc(now_bogota()),
+            updated_at=bogota_to_utc(now_bogota())
         )
         
         # Validar reglas de negocio
@@ -175,7 +175,7 @@ class UserDomainService:
         """
         if role not in user.roles:
             user.roles.append(role)
-            user.updated_at = now_bogota()
+            user.updated_at = bogota_to_utc(now_bogota())
         
         return user
     
@@ -186,7 +186,7 @@ class UserDomainService:
         """
         if role in user.roles and len(user.roles) > 1:  # No permitir quitar todos los roles
             user.roles.remove(role)
-            user.updated_at = datetime.now(timezone.utc)
+            user.updated_at = bogota_to_utc(now_bogota())
         
         return user
     
@@ -197,7 +197,7 @@ class UserDomainService:
         """
         user.is_active = True
         user.security.failed_attempts = 0  # Resetear intentos fallidos
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = bogota_to_utc(now_bogota())
         return user
     
     @staticmethod
@@ -206,7 +206,7 @@ class UserDomainService:
         Desactivar un usuario.
         """
         user.is_active = False
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = bogota_to_utc(now_bogota())
         return user
     
     @staticmethod
@@ -220,7 +220,7 @@ class UserDomainService:
         if user.security.failed_attempts >= 5:
             user.is_active = False
         
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = bogota_to_utc(now_bogota())
         return user
     
     @staticmethod
@@ -229,5 +229,5 @@ class UserDomainService:
         Resetear intentos fallidos de login.
         """
         user.security.failed_attempts = 0
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = bogota_to_utc(now_bogota())
         return user

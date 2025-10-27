@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from app.domains.bono.domain import BonoDomain, BonoDomainService
 from app.infrastructure.database.connection import get_database
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 
 class BonoService:
@@ -156,7 +157,7 @@ class BonoService:
             if value is not None and hasattr(existing_bono, key):
                 setattr(existing_bono, key, value)
         
-        existing_bono.updated_at = datetime.now(timezone.utc)
+        existing_bono.updated_at = bogota_to_utc(now_bogota())
         
         # Validar reglas de negocio
         errors = existing_bono.validate_business_rules()

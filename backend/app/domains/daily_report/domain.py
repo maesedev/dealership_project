@@ -5,7 +5,7 @@ Dominio DailyReport - Lógica de negocio pura para reportes diarios.
 from typing import Optional, List, Dict
 from datetime import datetime, date, timezone
 from pydantic import BaseModel, field_validator
-from app.shared.utils import now_bogota
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 
 class JackpotWinEntry(BaseModel):
@@ -116,8 +116,8 @@ class DailyReportDomainService:
             jackpot_wins=jackpot_wins if jackpot_wins is not None else [],
             bonos=bonos if bonos is not None else [],
             comment=comment,
-            created_at=now_bogota(),
-            updated_at=now_bogota()
+            created_at=bogota_to_utc(now_bogota()),
+            updated_at=bogota_to_utc(now_bogota())
         )
         
         # Validar reglas de negocio
@@ -144,7 +144,7 @@ class DailyReportDomainService:
         else:
             raise ValueError("Tipo de ingreso inválido. Debe ser 'reik', 'jackpot' o 'ganancias'")
         
-        report.updated_at = now_bogota()
+        report.updated_at = bogota_to_utc(now_bogota())
         return report
     
     @staticmethod
@@ -156,7 +156,7 @@ class DailyReportDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         report.gastos += amount
-        report.updated_at = now_bogota()
+        report.updated_at = bogota_to_utc(now_bogota())
         return report
     
     @staticmethod
@@ -185,6 +185,6 @@ class DailyReportDomainService:
                 raise ValueError("Los gastos no pueden ser negativos")
             report.gastos = gastos
         
-        report.updated_at = now_bogota()
+        report.updated_at = bogota_to_utc(now_bogota())
         return report
 

@@ -10,6 +10,7 @@ import bcrypt
 from bson import ObjectId
 from app.domains.user.domain import UserDomain, UserDomainService, UserRole
 from app.infrastructure.database.connection import get_database
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 
 class UserService:
@@ -179,7 +180,7 @@ class UserService:
                 setattr(existing_user, key, value)
         
         # Actualizar timestamp
-        existing_user.updated_at = datetime.now(timezone.utc)
+        existing_user.updated_at = bogota_to_utc(now_bogota())
         
         # Convertir a diccionario para actualización
         update_data = existing_user.dict(exclude={"id", "created_at", "hashed_password"})
@@ -216,7 +217,7 @@ class UserService:
                 raise ValueError("No se puede asignar el rol Dealer, Manager o Admin a un usuario sin contraseña. El usuario debe configurar una contraseña primero")
         
         existing_user.roles = roles
-        existing_user.updated_at = datetime.now(timezone.utc)
+        existing_user.updated_at = bogota_to_utc(now_bogota())
         
         await self.collection.update_one(
             {"_id": ObjectId(user_id)},
@@ -334,7 +335,7 @@ class UserService:
             {"_id": ObjectId(user_id)},
             {"$set": {
                 "hashed_password": new_hashed_password,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": bogota_to_utc(now_bogota())
             }}
         )
         

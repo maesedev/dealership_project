@@ -5,7 +5,7 @@ Dominio Bono - Lógica de negocio pura para bonos.
 from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
-from app.shared.utils import now_bogota
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 
 class BonoDomain(BaseModel):
@@ -71,8 +71,8 @@ class BonoDomainService:
             session_id=session_id,
             value=value,
             comment=comment,
-            created_at=now_bogota(),
-            updated_at=now_bogota()
+            created_at=bogota_to_utc(now_bogota()),
+            updated_at=bogota_to_utc(now_bogota())
         )
         
         # Validar reglas de negocio
@@ -91,7 +91,7 @@ class BonoDomainService:
             raise ValueError("El valor del bono debe ser mayor a 0")
         
         bono.value = new_value
-        bono.updated_at = now_bogota()
+        bono.updated_at = bogota_to_utc(now_bogota())
         
         return bono
     

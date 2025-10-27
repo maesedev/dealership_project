@@ -8,12 +8,13 @@ from typing import List, Optional
 from datetime import datetime, timezone
 from bson import ObjectId
 from app.domains.transaction.domain import (
-    TransactionDomain, 
+    TransactionDomain,
     TransactionDomainService,
     OperationType,
     TransactionMedia
 )
 from app.infrastructure.database.connection import get_database
+from app.shared.utils.timezone import now_bogota, bogota_to_utc
 
 
 class TransactionService:
@@ -223,7 +224,7 @@ class TransactionService:
             if value is not None and hasattr(existing_transaction, key):
                 setattr(existing_transaction, key, value)
         
-        existing_transaction.updated_at = datetime.now(timezone.utc)
+        existing_transaction.updated_at = bogota_to_utc(now_bogota())
         
         # Validar reglas de negocio
         errors = existing_transaction.validate_business_rules()
