@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
 from enum import Enum
+from app.shared.utils import now_bogota
 
 
 class OperationType(str, Enum):
@@ -112,8 +113,8 @@ class TransactionDomainService:
             operation_type=operation_type,
             transaction_media=transaction_media,
             comment=comment,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            created_at=now_bogota(),
+            updated_at=now_bogota()
         )
         
         # Validar reglas de negocio

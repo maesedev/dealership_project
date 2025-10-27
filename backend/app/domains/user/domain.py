@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, validator
 from enum import Enum
 import re
+from app.shared.utils import now_bogota
 
 
 class UserRole(str, Enum):
@@ -156,8 +157,8 @@ class UserDomainService:
             hashed_password=hashed_password,
             name=name,
             roles=roles,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            created_at=now_bogota(),
+            updated_at=now_bogota()
         )
         
         # Validar reglas de negocio
@@ -174,7 +175,7 @@ class UserDomainService:
         """
         if role not in user.roles:
             user.roles.append(role)
-            user.updated_at = datetime.now(timezone.utc)
+            user.updated_at = now_bogota()
         
         return user
     

@@ -5,6 +5,7 @@ Dominio Session - Lógica de negocio pura para sesiones de dealer.
 from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
+from app.shared.utils import now_bogota, get_bogota_timezone, ensure_bogota_timezone
 
 
 class SessionDomain(BaseModel):
@@ -26,13 +27,14 @@ class SessionDomain(BaseModel):
     
     @field_validator('start_time', 'end_time', 'created_at', 'updated_at')
     def ensure_timezone_aware(cls, v):
-        """Asegurar que todos los datetimes tengan información de zona horaria (UTC)"""
+        """Asegurar que todos los datetimes tengan información de zona horaria (Bogotá)"""
         if v is None:
             return v
-        # Si el datetime es naive (sin timezone), asumirlo como UTC
+        # Si el datetime es naive (sin timezone), asumirlo como Bogotá
         if v.tzinfo is None:
-            return v.replace(tzinfo=timezone.utc)
-        return v
+            return v.replace(tzinfo=get_bogota_timezone())
+        # Convertir a zona horaria de Bogotá
+        return ensure_bogota_timezone(v)
     
     @field_validator('jackpot', 'reik', 'tips', 'hourly_pay')
     def validate_positive_values(cls, v):
@@ -97,15 +99,15 @@ class SessionDomainService:
         Crear una nueva sesión con validación de reglas de negocio.
         """
         if start_time is None:
-            start_time = datetime.now(timezone.utc)
+            start_time = now_bogota()
         
         session = SessionDomain(
             dealer_id=dealer_id,
             start_time=start_time,
             hourly_pay=hourly_pay,
             comment=comment,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            created_at=now_bogota(),
+            updated_at=now_bogota()
         )
         
         # Validar reglas de negocio
@@ -138,13 +140,13 @@ class SessionDomainService:
             raise ValueError("El reik debe ser mayor a cero para terminar la sesión")
         
         if end_time is None:
-            end_time = datetime.now(timezone.utc)
+            end_time = now_bogota()
         
         if end_time < session.start_time:
             raise ValueError("El tiempo de fin no puede ser anterior al tiempo de inicio")
         
         session.end_time = end_time
-        session.updated_at = datetime.now(timezone.utc)
+        session.updated_at = now_bogota()
         
         return session
     
@@ -157,7 +159,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.jackpot += amount
-        session.updated_at = datetime.now(timezone.utc)
+        session.updated_at = now_bogota()
         
         return session
     
@@ -170,7 +172,7 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.reik += amount
-        session.updated_at = datetime.now(timezone.utc)
+        session.updated_at = now_bogota()
         
         return session
     
@@ -183,6 +185,6 @@ class SessionDomainService:
             raise ValueError("El monto no puede ser negativo")
         
         session.tips += amount
-        session.updated_at = datetime.now(timezone.utc)
+        session.updated_at = now_bogota()
         
         return session

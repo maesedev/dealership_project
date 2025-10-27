@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from app.domains.session.domain import SessionDomain, SessionDomainService
 from app.infrastructure.database.connection import get_database
+from app.shared.utils import now_bogota
 
 
 class SessionService:
@@ -189,7 +190,7 @@ class SessionService:
             if value is not None and hasattr(existing_session, key):
                 setattr(existing_session, key, value)
         
-        existing_session.updated_at = datetime.now(timezone.utc)
+        existing_session.updated_at = now_bogota()
         
         # Validar reglas de negocio
         errors = existing_session.validate_business_rules()
