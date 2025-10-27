@@ -2,6 +2,7 @@
 Configuración de la aplicación.
 """
 import os
+import logging
 from typing import List
 from pydantic_settings import BaseSettings
 
@@ -25,9 +26,24 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "tu-clave-secreta-aqui-cambiar-en-produccion"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
+    # Configuración de logging
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "%(asctime)s | %(name)s | %(levelname)s | %(filename)s:%(lineno)d | %(message)s"
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
+    
+    def get_log_level(self) -> int:
+        """Convierte el string de nivel de log a constante de logging"""
+        level_map = {
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR,
+            "CRITICAL": logging.CRITICAL
+        }
+        return level_map.get(self.LOG_LEVEL.upper(), logging.INFO)
 
 
 # Instancia global de configuración

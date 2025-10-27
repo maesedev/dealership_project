@@ -4,6 +4,10 @@ Configuración de conexión a MongoDB.
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.server_api import ServerApi
 from app.core.config import settings
+from app.shared.utils.logger import get_logger
+
+# Logger para este módulo
+logger = get_logger(__name__)
 
 
 class Database:
@@ -28,10 +32,10 @@ async def connect_to_mongo():
         
         # Enviar un ping para confirmar una conexión exitosa
         await db.client.admin.command('ping')
-        print(f"✅ Pinged your deployment. You successfully connected to MongoDB!")
-        print(f"✅ Conectado a la base de datos: {settings.MONGODB_DATABASE}")
+        logger.info("✅ Pinged your deployment. You successfully connected to MongoDB!")
+        logger.info(f"✅ Conectado a la base de datos: {settings.MONGODB_DATABASE}")
     except Exception as e:
-        print(f"❌ Error al conectar a MongoDB: {e}")
+        logger.error(f"❌ Error al conectar a MongoDB: {e}")
         raise
 
 
@@ -39,7 +43,7 @@ async def close_mongo_connection():
     """Cerrar conexión a MongoDB"""
     if db.client:
         db.client.close()
-        print("❌ Conexión a MongoDB cerrada")
+        logger.info("❌ Conexión a MongoDB cerrada")
 
 
 def get_database():

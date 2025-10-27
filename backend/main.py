@@ -7,6 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.infrastructure.database.connection import connect_to_mongo, close_mongo_connection
 from app.api.v1.router import api_router
+from app.shared.utils.logger import get_logger
+
+# Logger para la aplicación principal
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -16,10 +20,14 @@ async def lifespan(app: FastAPI):
     Se ejecuta al iniciar y al cerrar la aplicación.
     """
     # Startup: Conectar a MongoDB
+    logger.info("🚀 Iniciando aplicación FastAPI...")
     await connect_to_mongo()
+    logger.info("✅ Aplicación iniciada correctamente")
     yield
     # Shutdown: Cerrar conexión a MongoDB
+    logger.info("🛑 Cerrando aplicación...")
     await close_mongo_connection()
+    logger.info("✅ Aplicación cerrada correctamente")
 
 
 # Crear instancia de FastAPI
@@ -54,8 +62,3 @@ async def hello_world():
         "version": "1.0.0",
         "docs": "/docs"
     }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
