@@ -99,8 +99,11 @@ class SessionDomainService:
         Crear una nueva sesión con validación de reglas de negocio.
         """
         if start_time is None:
-            start_time = now_bogota()
-        
+            start_time = now_bogota().isoformat()
+            
+            
+        start_time = now_bogota().isoformat()
+
         session = SessionDomain(
             dealer_id=dealer_id,
             start_time=now_bogota(),
