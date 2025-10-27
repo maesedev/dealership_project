@@ -34,7 +34,16 @@ interface User {
     failed_attempts: number
   }
 }
-
+interface PasswordValidation {
+  isValid: boolean;
+  errors: string[];
+  checks: {
+    minLength: boolean;
+    hasUppercase: boolean;
+    hasLowercase: boolean;
+    hasNumber: boolean;
+  };
+}
 export default function UsersAdminPage() {
   const { user: currentUser, isLoading: authLoading } = useAuth()
   const router = useRouter()
@@ -459,9 +468,9 @@ function CreateUserModal({
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [passwordValidation, setPasswordValidation] = useState({
+  const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
     isValid: false,
-    errors: [],
+    errors: [], // Ahora TypeScript sabe que es string[], no never[]
     checks: {
       minLength: false,
       hasUppercase: false,
@@ -591,7 +600,7 @@ function CreateUserModal({
               </Button>
               <Button 
                 type="submit" 
-                disabled={isLoading || (formData.password && !passwordValidation.isValid)} 
+                disabled={isLoading || (formData.password.length > 0 && !passwordValidation.isValid)} 
                 className="flex-1"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Crear'}
