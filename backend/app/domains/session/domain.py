@@ -61,6 +61,7 @@ class SessionDomain(BaseModel):
     def normalize_to_utc(cls, v):
         """
         Normalizar todos los datetimes a UTC para almacenamiento consistente.
+        Evitar conversiones complejas que causen problemas de comparación.
         """
         if v is None:
             return v
@@ -73,12 +74,20 @@ class SessionDomain(BaseModel):
                 # Intentar otros formatos comunes
                 v = datetime.fromisoformat(v)
         
-        # Si ya es UTC, usar directamente
-        if isinstance(v, datetime) and v.tzinfo == timezone.utc:
+        # Si no es datetime, retornar tal como está
+        if not isinstance(v, datetime):
             return v
         
-        # Solo aplicar conversión si no es UTC
-        return cls.convert_to_bogota_utc(v)
+        # Si ya tiene timezone UTC, usar directamente
+        if v.tzinfo == timezone.utc:
+            return v
+        
+        # Si no tiene timezone, asumir que es UTC (simplificado)
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        
+        # Si tiene otra timezone, convertir a UTC
+        return v.astimezone(timezone.utc)
     
     @field_validator('jackpot', 'reik', 'tips', 'hourly_pay')
     def validate_positive_values(cls, v):
@@ -175,7 +184,6 @@ class SessionDomainService:
     def end_session(session: SessionDomain, end_time: datetime = None) -> SessionDomain:
         """
         Finalizar una sesión.
-        El end_time se convierte automáticamente a hora de Bogotá.
         
         Validación:
         - No permite terminar una sesión que ya fue terminada
@@ -186,15 +194,28 @@ class SessionDomainService:
             raise ValueError("Esta sesión ya fue terminada anteriormente")
         
         if end_time is None:
-            # Obtener hora actual de Bogotá y convertir a UTC
-            end_time = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
+            # Obtener hora actual como UTC directo
+            end_time = datetime.now(timezone.utc)
         
-        # El validator se encargará de convertir end_time apropiadamente
-        if end_time < session.start_time:
+        # Asegurar que ambos timestamps sean comparables (ambos UTC)
+        start_time_utc = session.start_time
+        if start_time_utc.tzinfo is None:
+            start_time_utc = start_time_utc.replace(tzinfo=timezone.utc)
+        elif start_time_utc.tzinfo != timezone.utc:
+            start_time_utc = start_time_utc.astimezone(timezone.utc)
+            
+        end_time_utc = end_time
+        if end_time_utc.tzinfo is None:
+            end_time_utc = end_time_utc.replace(tzinfo=timezone.utc)
+        elif end_time_utc.tzinfo != timezone.utc:
+            end_time_utc = end_time_utc.astimezone(timezone.utc)
+        
+        # Comparar en UTC
+        if end_time_utc < start_time_utc:
             raise ValueError("El tiempo de fin no puede ser anterior al tiempo de inicio")
         
-        session.end_time = end_time
-        session.updated_at = datetime.now(BOGOTA_TZ).astimezone(timezone.utc)
+        session.end_time = end_time_utc
+        session.updated_at = datetime.now(timezone.utc)
         
         return session
     
