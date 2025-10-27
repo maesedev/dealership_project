@@ -29,8 +29,8 @@ class UserCreateSchema(BaseModel):
     
     @field_validator('password')
     def validate_password(cls, v):
-        # Si no hay contraseña, es válido (se validará en la lógica de negocio)
-        if v is None:
+        # Si no hay contraseña o es una cadena vacía, es válido (se validará en la lógica de negocio)
+        if v is None or v == "":
             return v
         
         if len(v) < 8:
@@ -125,6 +125,10 @@ class UserPasswordChangeSchema(BaseModel):
     
     @field_validator('new_password')
     def validate_new_password(cls, v):
+        # Para cambio de contraseña, la nueva contraseña siempre debe cumplir los requisitos
+        if v is None or v == "":
+            raise ValueError('La nueva contraseña no puede estar vacía')
+        
         if len(v) < 8:
             raise ValueError('La nueva contraseña debe tener al menos 8 caracteres')
         if not any(c.isupper() for c in v):

@@ -158,15 +158,17 @@ export function DealerSession({ onSessionChange, onSessionEnd, onSessionStart }:
       setError('No se pudo identificar al usuario')
       return
     }
-
     try {
       setIsStarting(true)
       setError('')
       
       const now = new Date()
+      const bogotaTime = new Date(now.toLocaleString('en-US', { 
+        timeZone: 'America/Bogota' 
+      }))
       const newSession = {
         dealer_id: user.id,
-        start_time: now.toISOString(),
+        start_time: bogotaTime.toISOString(),
         jackpot: 0,
         reik: 0,
         tips: 0,

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PasswordStrengthIndicator } from '@/components/password-strength-indicator'
+import { validatePassword } from '@/lib/password-validator'
 import {
   UserPlus,
   Edit2,
@@ -457,14 +459,56 @@ function CreateUserModal({
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [passwordValidation, setPasswordValidation] = useState({
+    isValid: false,
+    errors: [],
+    checks: {
+      minLength: false,
+      hasUppercase: false,
+      hasLowercase: false,
+      hasNumber: false,
+    }
+  })
+
+  // Validar contraseña en tiempo real
+  useEffect(() => {
+    if (formData.password) {
+      setPasswordValidation(validatePassword(formData.password))
+    } else {
+      setPasswordValidation({
+        isValid: false,
+        errors: [],
+        checks: {
+          minLength: false,
+          hasUppercase: false,
+          hasLowercase: false,
+          hasNumber: false,
+        }
+      })
+    }
+  }, [formData.password])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
 
+    // Validar contraseña antes de enviar (solo si se proporciona)
+    if (formData.password && !passwordValidation.isValid) {
+      setError('La contraseña no cumple con los requisitos de seguridad')
+      setIsLoading(false)
+      return
+    }
+
+    // Preparar datos para envío - no enviar contraseña vacía
+    const submitData = {
+      ...formData,
+      password: formData.password || undefined, // Convertir cadena vacía a undefined
+      username: formData.username || undefined   // Convertir cadena vacía a undefined
+    }
+
     try {
-      await api.post('/api/v1/users/create', formData)
+      await api.post('/api/v1/users/create', submitData)
       onSuccess()
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Error al crear usuario'
@@ -520,6 +564,7 @@ function CreateUserModal({
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
+              <PasswordStrengthIndicator password={formData.password} />
             </div>
 
             <div>
@@ -544,7 +589,11 @@ function CreateUserModal({
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isLoading} className="flex-1">
+              <Button 
+                type="submit" 
+                disabled={isLoading || (formData.password && !passwordValidation.isValid)} 
+                className="flex-1"
+              >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Crear'}
               </Button>
             </div>
